@@ -5,6 +5,7 @@ import {
   signOut,
   sendPasswordResetEmail,
   onAuthStateChanged,
+  deleteUser,
 } from "firebase/auth";
 
 import {
@@ -73,18 +74,25 @@ export async function registerUser({
 
   const user = credential.user;
 
-  await setDoc(
-    doc(db, "users", user.uid),
-    {
-      role,
-      firstName: cleanFirstName,
-      lastName: cleanLastName,
-      email: user.email,
-      onboardingComplete: false,
-      createdAt: serverTimestamp(),
-      updatedAt: serverTimestamp(),
-    }
-  );
+  try {
+    await setDoc(
+      doc(db, "users", user.uid),
+      {
+        role,
+        firstName: cleanFirstName,
+        lastName: cleanLastName,
+        email: user.email,
+        onboardingComplete: false,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      }
+    );
+  } catch (error) {
+    // Remove the Auth account so the user can retry
+    // instead of getting "email already in use".
+    await deleteUser(user);
+    throw error;
+  }
 
   await sendEmailVerification(user);
 

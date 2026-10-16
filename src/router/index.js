@@ -5,11 +5,21 @@ import { createRouter, createWebHistory } from 'vue-router'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
-  routes: [{
-  path: "/register",
-  name: "register",
-  component: RegisterView,
-  }],
+  routes: [
+    {
+      path: "/",
+      redirect: "/register",
+    },
+    {
+      path: "/register",
+      name: "register",
+      component: RegisterView,
+    },
+    {
+      path: "/:pathMatch(.*)*",
+      redirect: "/register",
+    },
+  ],
 })
 
 export default router
