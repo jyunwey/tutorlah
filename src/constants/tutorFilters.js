@@ -23,7 +23,6 @@ export const LOCATIONS = [
   "East",
   "West",
   "Central",
-  "Online",
 ];
 
 export const AVAILABILITY = [

@@ -58,7 +58,7 @@ const TUTORS = [
     lastName: "Ng",
     subjects: ["English"],
     levels: ["Primary", "Secondary"],
-    location: "Online",
+    location: "Central",
     hourlyRate: 30,
     availability: ["Weekday afternoons"],
     teachingStyles: ["Patient", "Interactive"],
