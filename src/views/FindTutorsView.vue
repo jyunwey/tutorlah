@@ -25,11 +25,42 @@ const filteredTutors = computed(() =>
   )
 );
 
-// TODO (FR-010): return false when the tutor doesn't match
-// the subject, level, location, budget, availability or
-// teaching style filter.
-// eslint-disable-next-line no-unused-vars
+// FR-010: a tutor is shown only if they match every filter
+// that is set. An empty filter ("" or null) matches every tutor.
 function matchesFilters(tutor, activeFilters) {
+  const {
+    subject,
+    level,
+    location,
+    maxBudget,
+    availability,
+    teachingStyle,
+  } = activeFilters;
+
+  if (subject && !tutor.subjects.includes(subject)) {
+    return false;
+  }
+
+  if (level && !tutor.levels.includes(level)) {
+    return false;
+  }
+
+  if (location && tutor.location !== location) {
+    return false;
+  }
+
+  if (maxBudget !== null && tutor.hourlyRate > maxBudget) {
+    return false;
+  }
+
+  if (availability && !tutor.availability.includes(availability)) {
+    return false;
+  }
+
+  if (teachingStyle && !tutor.teachingStyles.includes(teachingStyle)) {
+    return false;
+  }
+
   return true;
 }
 
