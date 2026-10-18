@@ -1,0 +1,186 @@
+rules_version = '2';
+
+// Firestore security rules (NFR-007). See docs/data-model.md.
+//
+// Any collection without a rule here is blocked.
+// Add a rule before using a new collection.
+// TODO (Sprint 2): rules for requests, matches and messages.
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isDocumentOwner(uid) {
+      return isSignedIn()
+        && request.auth.uid == uid;
+    }
+
+    function currentUserRole() {
+      return get(
+        /databases/$(database)/documents/users/$(request.auth.uid)
+      ).data.role;
+    }
+
+    // Private account details, including contact details.
+    match /users/{uid} {
+      allow create: if isDocumentOwner(uid)
+        && request.resource.data.role
+          in ["student", "tutor"]
+
+        && request.resource.data.keys().hasAll([
+          "role",
+          "firstName",
+          "lastName",
+          "email",
+          "onboardingComplete",
+          "createdAt",
+          "updatedAt"
+        ])
+
+        && request.resource.data.keys().hasOnly([
+          "role",
+          "firstName",
+          "lastName",
+          "email",
+          "onboardingComplete",
+          "createdAt",
+          "updatedAt"
+        ])
+
+        && request.resource.data.firstName is string
+        && request.resource.data.lastName is string
+        && request.resource.data.email is string
+        && request.resource.data.onboardingComplete
+          is bool
+
+        && request.resource.data.email
+          == request.auth.token.email
+
+        && request.resource.data.onboardingComplete
+          == false
+
+        && request.resource.data.createdAt
+          == request.time
+
+        && request.resource.data.updatedAt
+          == request.time;
+
+      allow read: if isDocumentOwner(uid);
+
+      allow update: if isDocumentOwner(uid)
+        && request.resource.data.role
+          == resource.data.role
+
+        && request.resource.data.createdAt
+          == resource.data.createdAt
+
+        && request.resource.data
+          .diff(resource.data)
+          .affectedKeys()
+          .hasOnly([
+            "firstName",
+            "lastName",
+            "onboardingComplete",
+            "updatedAt"
+          ])
+
+        && request.resource.data.updatedAt
+          == request.time;
+
+      allow delete: if false;
+    }
+
+    // Public tutor info shown on Find Tutors (FR-008).
+    // No contact details here. Document ID is the tutor's uid.
+    match /tutorProfiles/{uid} {
+      function hasValidTutorProfileFields() {
+        return request.resource.data.keys().hasAll([
+            "firstName",
+            "lastName",
+            "subjects",
+            "levels",
+            "location",
+            "hourlyRate",
+            "availability",
+            "teachingStyles",
+            "rating",
+            "createdAt",
+            "updatedAt"
+          ])
+
+          && request.resource.data.keys().hasOnly([
+            "firstName",
+            "lastName",
+            "subjects",
+            "levels",
+            "location",
+            "hourlyRate",
+            "availability",
+            "teachingStyles",
+            "rating",
+            "bio",
+            "createdAt",
+            "updatedAt"
+          ])
+
+          && request.resource.data.firstName is string
+          && request.resource.data.lastName is string
+          && request.resource.data.subjects is list
+          && request.resource.data.levels is list
+          && request.resource.data.location is string
+          && request.resource.data.hourlyRate is number
+          && request.resource.data.availability is list
+          && request.resource.data.teachingStyles is list
+          && request.resource.data.rating is number;
+      }
+
+      allow read: if isSignedIn();
+
+      allow create: if isDocumentOwner(uid)
+        && currentUserRole() == "tutor"
+        && hasValidTutorProfileFields()
+
+        && request.resource.data.createdAt
+          == request.time
+
+        && request.resource.data.updatedAt
+          == request.time;
+
+      allow update: if isDocumentOwner(uid)
+        && hasValidTutorProfileFields()
+
+        && request.resource.data.createdAt
+          == resource.data.createdAt
+
+        && request.resource.data.updatedAt
+          == request.time;
+
+      allow delete: if isDocumentOwner(uid);
+    }
+
+    // Post Assignment (FR-018, FR-019) and Find Assignments (FR-014, FR-015).
+    // TODO: add field checks once the Post Assignment fields are final.
+    match /assignments/{assignmentId} {
+      allow read: if isSignedIn();
+
+      allow create: if isSignedIn()
+        && currentUserRole() == "student"
+        && request.resource.data.studentId
+          == request.auth.uid;
+
+      allow update: if isSignedIn()
+        && resource.data.studentId
+          == request.auth.uid
+
+        && request.resource.data.studentId
+          == resource.data.studentId;
+
+      allow delete: if isSignedIn()
+        && resource.data.studentId
+          == request.auth.uid;
+    }
+  }
+}

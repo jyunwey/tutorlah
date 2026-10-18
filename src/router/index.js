@@ -1,5 +1,7 @@
 import RegisterView from
   "../views/RegisterView.vue";
+import FindTutorsView from
+  "../views/FindTutorsView.vue";
 
 import { createRouter, createWebHistory } from 'vue-router'
 
@@ -14,6 +16,11 @@ const router = createRouter({
       path: "/register",
       name: "register",
       component: RegisterView,
+    },
+    {
+      path: "/find-tutors",
+      name: "find-tutors",
+      component: FindTutorsView,
     },
     {
       path: "/:pathMatch(.*)*",
