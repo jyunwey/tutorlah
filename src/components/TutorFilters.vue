@@ -1,10 +1,14 @@
 <script setup>
+import { computed } from "vue";
+
 import {
   SUBJECTS,
   LEVELS,
   LOCATIONS,
   AVAILABILITY,
   TEACHING_STYLES,
+  BUDGET_MIN,
+  BUDGET_MAX,
   createEmptyFilters,
 } from "../constants/tutorFilters.js";
 
@@ -17,6 +21,12 @@ const props = defineProps({
 
 const emit = defineEmits(["update:modelValue"]);
 
+const budgetLabel = computed(() =>
+  props.modelValue.maxBudget === null
+    ? "Any"
+    : `Up to $${props.modelValue.maxBudget}`
+);
+
 function updateFilter(key, value) {
   emit("update:modelValue", {
     ...props.modelValue,
@@ -24,10 +34,25 @@ function updateFilter(key, value) {
   });
 }
 
+// Moving the slider to the far right removes the budget filter.
 function updateBudget(value) {
+  const amount = Number(value);
+
   updateFilter(
     "maxBudget",
-    value === "" ? null : Number(value)
+    amount >= BUDGET_MAX ? null : amount
+  );
+}
+
+// Adds the option if it isn't checked yet, otherwise removes it.
+function toggleOption(key, option) {
+  const selected = props.modelValue[key];
+
+  updateFilter(
+    key,
+    selected.includes(option)
+      ? selected.filter((item) => item !== option)
+      : [...selected, option]
   );
 }
 
@@ -61,7 +86,7 @@ function clearAll() {
     </div>
 
     <div class="form-field">
-      <label for="filter-level">Academic level</label>
+      <label for="filter-level">Academic Level</label>
       <select
         id="filter-level"
         :value="modelValue.level"
@@ -89,51 +114,59 @@ function clearAll() {
     </div>
 
     <div class="form-field">
-      <label for="filter-budget">Max budget (SGD/hr)</label>
+      <div class="budget-header">
+        <label for="filter-budget">Budget (per hour)</label>
+        <span>{{ budgetLabel }}</span>
+      </div>
+
       <input
         id="filter-budget"
-        type="number"
-        min="0"
-        placeholder="Any budget"
-        :value="modelValue.maxBudget ?? ''"
+        type="range"
+        :min="BUDGET_MIN"
+        :max="BUDGET_MAX"
+        step="5"
+        :value="modelValue.maxBudget ?? BUDGET_MAX"
         @input="updateBudget($event.target.value)"
       />
+
+      <div class="range-labels">
+        <span>${{ BUDGET_MIN }}</span>
+        <span>${{ BUDGET_MAX }}</span>
+      </div>
     </div>
 
-    <div class="form-field">
-      <label for="filter-availability">Availability</label>
-      <select
-        id="filter-availability"
-        :value="modelValue.availability"
-        @change="updateFilter('availability', $event.target.value)"
-      >
-        <option value="">Any time</option>
-        <option v-for="slot in AVAILABILITY" :key="slot" :value="slot">
-          {{ slot }}
-        </option>
-      </select>
-    </div>
+    <fieldset class="form-field">
+      <legend>Availability</legend>
 
-    <div class="form-field">
-      <label for="filter-style">Teaching style</label>
-      <select
-        id="filter-style"
-        :value="modelValue.teachingStyle"
-        @change="updateFilter('teachingStyle', $event.target.value)"
-      >
-        <option value="">Any style</option>
-        <option v-for="style in TEACHING_STYLES" :key="style" :value="style">
-          {{ style }}
-        </option>
-      </select>
-    </div>
+      <label v-for="slot in AVAILABILITY" :key="slot" class="checkbox">
+        <input
+          type="checkbox"
+          :checked="modelValue.availability.includes(slot)"
+          @change="toggleOption('availability', slot)"
+        />
+        {{ slot }}
+      </label>
+    </fieldset>
+
+    <fieldset class="form-field">
+      <legend>Teaching Style</legend>
+
+      <label v-for="style in TEACHING_STYLES" :key="style" class="checkbox">
+        <input
+          type="checkbox"
+          :checked="modelValue.teachingStyles.includes(style)"
+          @change="toggleOption('teachingStyles', style)"
+        />
+        {{ style }}
+      </label>
+    </fieldset>
   </aside>
 </template>
 
 <style scoped>
 .filters {
   display: grid;
-  gap: 16px;
+  gap: 20px;
   align-content: start;
   padding: 20px;
   background: white;
@@ -153,15 +186,41 @@ function clearAll() {
 
 .form-field {
   display: grid;
-  gap: 6px;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  border: none;
 }
 
-input,
+.form-field > label,
+.budget-header label,
+legend {
+  font-weight: 600;
+}
+
+legend {
+  margin-bottom: 8px;
+  padding: 0;
+}
+
 select {
   width: 100%;
   padding: 10px;
   box-sizing: border-box;
   font: inherit;
+}
+
+.budget-header,
+.range-labels {
+  display: flex;
+  justify-content: space-between;
+}
+
+.checkbox {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
 }
 
 .clear-button {

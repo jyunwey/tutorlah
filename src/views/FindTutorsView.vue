@@ -26,7 +26,8 @@ const filteredTutors = computed(() =>
 );
 
 // FR-010: a tutor is shown only if they match every filter
-// that is set. An empty filter ("" or null) matches every tutor.
+// that is set. An empty filter ("", null or []) matches every tutor.
+// For checkbox filters, the tutor needs at least one of the ticked options.
 function matchesFilters(tutor, activeFilters) {
   const {
     subject,
@@ -34,7 +35,7 @@ function matchesFilters(tutor, activeFilters) {
     location,
     maxBudget,
     availability,
-    teachingStyle,
+    teachingStyles,
   } = activeFilters;
 
   if (subject && !tutor.subjects.includes(subject)) {
@@ -53,11 +54,17 @@ function matchesFilters(tutor, activeFilters) {
     return false;
   }
 
-  if (availability && !tutor.availability.includes(availability)) {
+  if (
+    availability.length > 0 &&
+    !availability.some((slot) => tutor.availability.includes(slot))
+  ) {
     return false;
   }
 
-  if (teachingStyle && !tutor.teachingStyles.includes(teachingStyle)) {
+  if (
+    teachingStyles.length > 0 &&
+    !teachingStyles.some((style) => tutor.teachingStyles.includes(style))
+  ) {
     return false;
   }
 
@@ -84,7 +91,10 @@ onMounted(async () => {
 <template>
   <!-- TODO (FR-005): navigation bar goes here once it is built. -->
   <main class="find-tutors-page">
-    <h1>Find Tutors</h1>
+    <header class="page-header">
+      <h1>Find Tutors</h1>
+      <p>Browse tutors based on your needs.</p>
+    </header>
 
     <div class="layout">
       <!-- FR-010 -->
@@ -108,7 +118,7 @@ onMounted(async () => {
             No tutors found
           </p>
 
-          <div v-else class="card-grid">
+          <div v-else class="card-list">
             <TutorCard
               v-for="tutor in filteredTutors"
               :key="tutor.id"
@@ -131,9 +141,19 @@ onMounted(async () => {
   background: #f5f5f5;
 }
 
-h1 {
+.page-header {
   max-width: 1200px;
-  margin: 0 auto 20px;
+  margin: 0 auto 24px;
+}
+
+.page-header h1,
+.page-header p {
+  margin: 0;
+}
+
+.page-header p {
+  margin-top: 6px;
+  color: #555;
 }
 
 .layout {
@@ -149,9 +169,8 @@ h1 {
   font-weight: 600;
 }
 
-.card-grid {
+.card-list {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
   gap: 16px;
 }
 
