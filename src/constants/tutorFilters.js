@@ -1,5 +1,5 @@
 // Options for the Find Tutors filters (FR-010).
-// TODO: align these lists with the midterm proposal / prototype.
+// Availability and teaching styles follow the midterm prototype.
 
 export const SUBJECTS = [
   "English",
@@ -26,18 +26,23 @@ export const LOCATIONS = [
 ];
 
 export const AVAILABILITY = [
-  "Weekday mornings",
-  "Weekday afternoons",
-  "Weekday evenings",
-  "Weekends",
+  "Weekday Morning",
+  "Weekday Afternoon",
+  "Weekday Evening",
+  "Weekend",
 ];
 
 export const TEACHING_STYLES = [
   "Patient",
+  "Concept-focused",
   "Exam-focused",
-  "Interactive",
-  "Structured",
+  "Visual / Interactive",
 ];
+
+// Budget slider range in SGD per hour.
+// The slider at BUDGET_MAX means "any budget".
+export const BUDGET_MIN = 20;
+export const BUDGET_MAX = 100;
 
 // An empty value means "no filter applied".
 export function createEmptyFilters() {
@@ -46,7 +51,7 @@ export function createEmptyFilters() {
     level: "",
     location: "",
     maxBudget: null,
-    availability: "",
-    teachingStyle: "",
+    availability: [],
+    teachingStyles: [],
   };
 }
