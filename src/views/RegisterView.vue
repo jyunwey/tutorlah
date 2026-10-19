@@ -1,4 +1,5 @@
 <script setup>
+import AuthLayout from "../components/AuthLayout.vue";
 import { ref } from "vue";
 
 import {
@@ -88,145 +89,214 @@ async function handleRegistration() {
 </script>
 
 <template>
-  <main class="register-page">
-    <section class="register-card">
-      <h1>Create an account</h1>
+  <AuthLayout> 
+    <template #branding>
+      <h2>
+        Join<br>
+        TutorLah<br>
+        today.
+      </h2>
 
-      <form
-        class="register-form"
-        @submit.prevent="handleRegistration"
-      >
-        <div class="form-field">
-          <label for="first-name">
-            First name
-          </label>
-
-          <input
-            id="first-name"
-            v-model.trim="firstName"
-            type="text"
-            autocomplete="given-name"
-            required
-          />
-        </div>
-
-        <div class="form-field">
-          <label for="last-name">
-            Last name
-          </label>
-
-          <input
-            id="last-name"
-            v-model.trim="lastName"
-            type="text"
-            autocomplete="family-name"
-            required
-          />
-        </div>
-
-        <div class="form-field">
-          <label for="email">
-            Email
-          </label>
-
-          <input
-            id="email"
-            v-model.trim="email"
-            type="email"
-            autocomplete="email"
-            required
-          />
-        </div>
-
-        <div class="form-field">
-          <label for="password">
-            Password
-          </label>
-
-          <input
-            id="password"
-            v-model="password"
-            type="password"
-            minlength="8"
-            autocomplete="new-password"
-            required
-          />
-
-          <small>
-            Use at least 8 characters.
-          </small>
-        </div>
-
-        <div class="form-field">
-          <label for="role">
-            Account type
-          </label>
-
-          <select
-            id="role"
-            v-model="role"
-            required
-          >
-            <option disabled value="">
-              Select an account type
-            </option>
-
-            <option value="student">
-              Student
-            </option>
-
-            <option value="tutor">
-              Tutor
-            </option>
-          </select>
-        </div>
-
-        <button
-          type="submit"
-          :disabled="isSubmitting"
-        >
-          {{
-            isSubmitting
-              ? "Creating account..."
-              : "Create account"
-          }}
-        </button>
-      </form>
-
-      <p
-        v-if="message"
-        class="form-message"
-        :class="messageType"
-        aria-live="polite"
-      >
-        {{ message }}
+      <p>
+        Create an account and start your
+        learning journey with trusted
+        tutors and students in Singapore.
       </p>
-    </section>
-  </main>
+
+      <div class="feature">
+        <h4>Join a trusted community</h4>
+        <p>Connect with genuine users</p>
+      </div>
+
+      <div class="feature">
+        <h4>Find the right match</h4>
+        <p>Personalised to your needs</p>
+      </div>
+
+      <div class="feature">
+        <h4>Achieve your goals</h4>
+        <p>Flexible and convenient learning</p>
+      </div>
+    </template>
+
+  
+    <h1>Create an account</h1>
+    <h3>Join TutorLah and start your learning journey today.</h3>
+
+    <form
+      class="register-form"
+      @submit.prevent="handleRegistration"
+    >
+
+    <div class="role-selection">
+      <button
+        type="button"
+        class="role-card"
+        :class="{ selected: role === 'student' }"
+        :aria-pressed="role === 'student'"
+        @click="role = 'student'"
+      >
+        <span class="role-icon">🧑‍🎓</span>
+        <span>Student / Parent</span>
+      </button>
+
+      <button
+        type="button"
+        class="role-card"
+        :class="{ selected: role === 'tutor' }"
+        :aria-pressed="role === 'tutor'"
+        @click="role = 'tutor'"
+      >
+        <span class="role-icon">🧑‍🏫</span>
+        <span>Tutor</span>
+      </button>
+    </div>
+
+      <div class="form-field">
+        <label for="first-name">
+          First name
+        </label>
+
+        <input
+          id="first-name"
+          v-model.trim="firstName"
+          type="text"
+          autocomplete="given-name"
+          required
+        />
+      </div>
+
+      <div class="form-field">
+        <label for="last-name">
+          Last name
+        </label>
+
+        <input
+          id="last-name"
+          v-model.trim="lastName"
+          type="text"
+          autocomplete="family-name"
+          required
+        />
+      </div>
+
+      <div class="form-field">
+        <label for="email">
+          Email
+        </label>
+
+        <input
+          id="email"
+          v-model.trim="email"
+          type="email"
+          autocomplete="email"
+          required
+        />
+      </div>
+
+      <div class="form-field">
+        <label for="password">
+          Password
+        </label>
+
+        <input
+          id="password"
+          v-model="password"
+          type="password"
+          minlength="8"
+          autocomplete="new-password"
+          required
+        />
+
+        <small>
+          Use at least 8 characters.
+        </small>
+      </div>
+
+      <button
+        type="submit"
+        :disabled="isSubmitting"
+      >
+        {{
+          isSubmitting
+            ? "Creating account..."
+            : "Create account"
+        }}
+      </button>
+    </form>
+
+    <p
+      v-if="message"
+      class="form-message"
+      :class="messageType"
+      aria-live="polite"
+    >
+      {{ message }}
+    </p>
+  </AuthLayout>
 </template>
 
+
 <style scoped>
-.register-page {
-  min-height: 100vh;
-  display: grid;
-  place-items: center;
-  padding: 32px 20px;
-  box-sizing: border-box;
-  background: #f5f5f5;
+h1 {
+  font-size: 25px;
+  font-weight: 700;
+  text-align: center;
+  margin: 0 0 5px;
 }
 
-.register-card {
-  width: 100%;
-  max-width: 480px;
-  padding: 28px;
-  box-sizing: border-box;
-  background: white;
-  border-radius: 12px;
+h3 {
+  font-size: 13px;
+  color:#52658a;
+  font-weight: 300;
+  text-align: center;
+  margin: 0 0 20px;
+}
+
+.role-selection {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.role-card {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+
+  padding: 10px 10px;
+  border: 1px solid #e5e7eb;
+  border-radius: 7px;
+
+  background: #f8f9fb;
+  color: black;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 500;
+
+  transition: all 0.2s ease;
+}
+
+.role-icon {
+  font-size: 25px;
+}
+
+.role-card.selected {
+  background: #e4fff3;
+  border-color: #3dc392;
+}
+
+.role-card:hover {
+  border-color: #3dc392;
 }
 
 .register-form {
   display: grid;
-  gap: 18px;
+  gap: 16px;
 }
 
 .form-field {
@@ -234,22 +304,40 @@ async function handleRegistration() {
   gap: 6px;
 }
 
-input,
-select,
-button {
-  width: 100%;
-  padding: 12px;
-  box-sizing: border-box;
-  font: inherit;
+.form-field label {
+  font-size: 14px;
+  font-weight: 600;
+  color: black;
 }
 
-button {
+input,
+select {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid #d5dce5;
+  border-radius: 6px;
+  box-sizing: border-box;
+}
+
+.register-form button[type="submit"] {
+  width: 100%;
+  padding: 13px;
+  background: #00875a;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 16px;
+  font-weight: 600;
   cursor: pointer;
 }
 
-button:disabled {
-  cursor: not-allowed;
+.register-form button[type="submit"] {
+  background: #006f49;
+}
+
+.register-form button[type="submit"] {
   opacity: 0.6;
+  cursor: not-allowed;
 }
 
 .form-message.success {
@@ -261,6 +349,6 @@ button:disabled {
 }
 
 .form-message.loading {
-  color: black;
+  color: #52658a;
 }
 </style>
