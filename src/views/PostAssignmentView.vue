@@ -1,3 +1,24 @@
+<script setup>
+import { reactive } from 'vue'
+
+const form = reactive({
+  subject: '',
+  level: '',
+  location: '',
+  learningMode: 'In-person',
+  minimumRate: '',
+  maximumRate: '',
+  schedule: '',
+  teachingStyle: 'No preference',
+  additionalDetails: '',
+})
+
+function handleSubmit() {
+  console.log('Assignment form:', {
+    ...form,
+  })
+}
+</script>
 <template>
   <main class="post-assignment-page">
     <h1>Post a Tuition Assignment</h1>
@@ -8,14 +29,14 @@
 
     <form
         class="assignment-form"
-        @submit.prevent
+        @submit.prevent="handleSubmit"
     >
       <div>
         <label for="subject">
           Subject
         </label>
 
-        <select id="subject">
+        <select id="subject" v-model="form.subject">
           <option value="">
             Select a subject
           </option>
@@ -39,7 +60,7 @@
           Academic Level
         </label>
 
-        <select id="level">
+        <select id="level" v-model="form.level">
           <option value="">
             Select an academic level
           </option>
@@ -63,7 +84,7 @@
           Preferred Location
         </label>
 
-        <select id="location">
+        <select id="location" v-model="form.location">
           <option value="">
             Select a location
           </option>
@@ -95,7 +116,7 @@
           Preferred Learning Mode
         </label>
 
-        <select id="learning-mode">
+        <select id="learning-mode" v-model="form.learningMode">
           <option value="In-person">
             In-person
           </option>
@@ -117,6 +138,7 @@
 
         <input
           id="minimum-rate"
+          v-model="form.minimumRate"
           type="number"
         />
       </div>
@@ -128,6 +150,7 @@
 
         <input
           id="maximum-rate"
+          v-model="form.maximumRate"
           type="number"
         />
       </div>
@@ -139,6 +162,7 @@
 
         <input
           id="schedule"
+          v-model.trim="form.schedule"
           type="text"
         />
       </div>
@@ -148,7 +172,7 @@
           Preferred Teaching Style
         </label>
 
-        <select id="teaching-style">
+        <select id="teaching-style" v-model="form.teachingStyle">
           <option value="No preference">
             No preference
           </option>
@@ -174,11 +198,12 @@
 
         <textarea
           id="additional-details"
+          v-model.trim="form.additionalDetails"
           rows="5"
         ></textarea>
       </div>
 
-`    <footer class="form-actions">
+    <footer class="form-actions">
     <button
         class="cancel-button"
         type="button"
@@ -192,7 +217,7 @@
     >
         Post Assignment
     </button>
-    </footer>`
+    </footer>
     </form>
   </main>
 </template>
