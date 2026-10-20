@@ -1,6 +1,6 @@
 <script setup>
 import AuthLayout from "../components/AuthLayout.vue";
-import { ref } from "vue";
+import { ref, computed } from "vue";
 
 import {
   registerUser,
@@ -15,6 +15,15 @@ const role = ref("");
 const message = ref("");
 const messageType = ref("");
 const isSubmitting = ref(false);
+
+const isFormValid = computed(() => {
+  return (
+    firstName.value.trim() !== "" &&
+    lastName.value.trim() !== "" &&
+    /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.value.trim()) &&
+    password.value.length >= 8 
+  );
+});
 
 async function handleRegistration() {
   message.value =
@@ -215,13 +224,10 @@ async function handleRegistration() {
 
       <button
         type="submit"
-        :disabled="isSubmitting"
+        class="submit-btn"
+        :disabled="!isFormValid || isSubmitting"
       >
-        {{
-          isSubmitting
-            ? "Creating account..."
-            : "Create account"
-        }}
+        {{ isSubmitting ? "Creating account..." : "Create account" }}
       </button>
     </form>
 
@@ -319,7 +325,7 @@ select {
   box-sizing: border-box;
 }
 
-.register-form button[type="submit"] {
+.submit-btn {
   width: 100%;
   padding: 13px;
   background: #00875a;
@@ -329,15 +335,24 @@ select {
   font-size: 16px;
   font-weight: 600;
   cursor: pointer;
+  transition: background 0.2s ease, opacity 0.2s ease;
 }
 
-.register-form button[type="submit"] {
-  background: #006f49;
-}
-
-.register-form button[type="submit"] {
-  opacity: 0.6;
+/* Form incomplete */
+.submit-btn:disabled {
+  background: #7ba994;
   cursor: not-allowed;
+  opacity: 1;
+}
+
+/* Form complete */
+.submit-btn:not(:disabled) {
+  background: #00875a;
+}
+
+/* Hover when enabled */
+.submit-btn:not(:disabled):hover {
+  background: #006b47;
 }
 
 .form-message.success {

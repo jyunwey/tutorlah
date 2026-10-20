@@ -20,11 +20,11 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 70px;
+  gap: 120px;
 
   min-height: 100vh;
   width: 100%;
-  padding: 50px 6%;
+  padding: 48px 5%;
 
   background-image: url('/auth-mint-background.png');
   background-size: cover;
@@ -41,7 +41,7 @@
 /* LEFT SIDE */
 .auth-branding {
   flex: 1;
-  max-width: 360px;
+  max-width: 380px;
 }
 
 .auth-logo {
@@ -51,16 +51,16 @@
 }
 
 .auth-branding :deep(h2) {
-  font-size: 42px;
+  font-size: 45px;
   font-weight: 800;
-  line-height: 1.1;
+  line-height: 1.2;
   letter-spacing: -1px;
-  color: #10213b;
-  margin: 0 0 18px;
+  color: black;
+  margin: 0 0 12px;
 }
 
 .auth-branding :deep(p) {
-  font-size: 15px;
+  font-size: 16px;
   line-height: 1.5;
   color: #52658a;
 }
@@ -73,7 +73,7 @@
 }
 
 .auth-branding :deep(.feature h4) {
-  font-size: 17px;
+  font-size: 18px;
   font-weight: 700;
 }
 
@@ -84,9 +84,9 @@
 
 /* RIGHT SIDE */
 .auth-content {
-  flex: 1;
-  max-width: 480px;
-  padding: 35px;
+  flex: 1.4;
+  max-width: 600px;
+  padding: 35px 45px;
   background: white;
   border-radius: 12px;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
