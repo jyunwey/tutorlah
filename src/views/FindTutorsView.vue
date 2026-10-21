@@ -102,9 +102,9 @@ onMounted(async () => {
 
       <!-- FR-008 -->
       <section class="results">
-        <p v-if="isLoading">Loading tutors...</p>
+        <p v-if="isLoading" class="status">Loading tutors...</p>
 
-        <p v-else-if="errorMessage" class="error">
+        <p v-else-if="errorMessage" class="status error">
           {{ errorMessage }}
         </p>
 
@@ -114,9 +114,10 @@ onMounted(async () => {
             {{ filteredTutors.length === 1 ? "tutor" : "tutors" }} found
           </p>
 
-          <p v-if="filteredTutors.length === 0" class="empty">
-            No tutors found
-          </p>
+          <div v-if="filteredTutors.length === 0" class="status">
+            <p class="empty-title">No tutors found</p>
+            <p>Try removing some filters.</p>
+          </div>
 
           <div v-else class="card-list">
             <TutorCard
@@ -136,14 +137,16 @@ onMounted(async () => {
 <style scoped>
 .find-tutors-page {
   min-height: 100vh;
-  padding: 32px 20px;
+  padding: 40px 20px;
   box-sizing: border-box;
-  background: #f5f5f5;
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-family: var(--font-sans);
 }
 
 .page-header {
   max-width: 1200px;
-  margin: 0 auto 24px;
+  margin: 0 auto 28px;
 }
 
 .page-header h1,
@@ -151,22 +154,36 @@ onMounted(async () => {
   margin: 0;
 }
 
+.page-header h1 {
+  font-size: 2.5rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
 .page-header p {
-  margin-top: 6px;
-  color: #555;
+  margin-top: 8px;
+  color: var(--color-text-muted);
+  font-size: 1.15rem;
 }
 
 .layout {
   display: grid;
-  grid-template-columns: 260px 1fr;
+  grid-template-columns: 280px 1fr;
+  align-items: start;
   gap: 24px;
   max-width: 1200px;
   margin: 0 auto;
 }
 
+.results {
+  display: grid;
+  gap: 16px;
+}
+
 .result-count {
-  margin-top: 0;
-  font-weight: 600;
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 500;
 }
 
 .card-list {
@@ -174,13 +191,39 @@ onMounted(async () => {
   gap: 16px;
 }
 
-.error {
-  color: red;
+/* Loading, error and "No tutors found" messages. */
+.status {
+  margin: 0;
+  padding: 48px 24px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
+  background: var(--color-surface);
+  color: var(--color-text-muted);
+  text-align: center;
 }
 
-@media (max-width: 720px) {
+.status p {
+  margin: 0;
+}
+
+.status .empty-title {
+  margin-bottom: 6px;
+  color: var(--color-text);
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.error {
+  color: var(--color-error);
+}
+
+@media (max-width: 860px) {
   .layout {
     grid-template-columns: 1fr;
+  }
+
+  .page-header h1 {
+    font-size: 2rem;
   }
 }
 </style>
