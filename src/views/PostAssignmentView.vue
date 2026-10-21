@@ -8,7 +8,8 @@ const form = reactive({
   learningMode: 'In-person',
   minimumRate: '',
   maximumRate: '',
-  schedule: '',
+  preferredDay: '',
+  preferredTimeSlot: '',  
   teachingStyle: 'No preference',
   additionalDetails: '',
 })
@@ -302,15 +303,89 @@ function handleSubmit() {
       </div>
 
       <div>
-        <label for="schedule">
-          Preferred Schedule
+        <label for="preferred-day">
+          Preferred Day
         </label>
 
-        <input
-          id="schedule"
-          v-model.trim="form.schedule"
-          type="text"
-        />
+        <select
+          id="preferred-day"
+          v-model="form.preferredDay"
+        >
+          <option value="">
+            Select a preferred day
+          </option>
+
+          <option value="Monday">
+            Monday
+          </option>
+
+          <option value="Tuesday">
+            Tuesday
+          </option>
+
+          <option value="Wednesday">
+            Wednesday
+          </option>
+
+          <option value="Thursday">
+            Thursday
+          </option>
+
+          <option value="Friday">
+            Friday
+          </option>
+
+          <option value="Saturday">
+            Saturday
+          </option>
+
+          <option value="Sunday">
+            Sunday
+          </option>
+        </select>
+      </div>
+
+      <div>
+        <label for="preferred-time-slot">
+          Preferred Time Slot
+        </label>
+
+        <select
+          id="preferred-time-slot"
+          v-model="form.preferredTimeSlot"
+        >
+          <option value="">
+            Select a preferred time slot
+          </option>
+
+          <option value="08:00-10:00">
+            8:00 AM - 10:00 AM
+          </option>
+
+          <option value="10:00-12:00">
+            10:00 AM - 12:00 PM
+          </option>
+
+          <option value="12:00-14:00">
+            12:00 PM - 2:00 PM
+          </option>
+
+          <option value="14:00-16:00">
+            2:00 PM - 4:00 PM
+          </option>
+
+          <option value="16:00-18:00">
+            4:00 PM - 6:00 PM
+          </option>
+
+          <option value="18:00-20:00">
+            6:00 PM - 8:00 PM
+          </option>
+
+          <option value="20:00-22:00">
+            8:00 PM - 10:00 PM
+          </option>
+        </select>
       </div>
 
       <div>
