@@ -2,7 +2,7 @@
   <main class="auth-layout">
     <section class="auth-branding">
       <div class="auth-logo">
-        🎓 TutorLah
+        <img src="/logo-1-book.svg" alt="TutorLah logo" />
       </div>
 
       <slot name="branding"></slot>
@@ -44,10 +44,11 @@
   max-width: 380px;
 }
 
-.auth-logo {
-  font-size: 26px;
-  font-weight: 800;
-  margin-bottom: 32px;
+.auth-logo img {
+  width: 290px;
+  height: auto;
+  display: block;
+  margin-bottom: 20px;
 }
 
 .auth-branding :deep(h2) {
@@ -55,7 +56,7 @@
   font-weight: 800;
   line-height: 1.2;
   letter-spacing: -1px;
-  color: black;
+  color:#0F1B4C;
   margin: 0 0 12px;
 }
 
@@ -75,6 +76,7 @@
 .auth-branding :deep(.feature h4) {
   font-size: 18px;
   font-weight: 700;
+  color: #0F1B4C;
 }
 
 .auth-branding :deep(.feature h4),

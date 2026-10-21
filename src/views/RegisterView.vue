@@ -145,7 +145,7 @@ async function handleRegistration() {
         :aria-pressed="role === 'student'"
         @click="role = 'student'"
       >
-        <span class="role-icon">🧑‍🎓</span>
+        <img class="role-icon" src="/signup/icon-student-parent.svg" alt="icon-student-parent" />
         <span>Student / Parent</span>
       </button>
 
@@ -156,7 +156,7 @@ async function handleRegistration() {
         :aria-pressed="role === 'tutor'"
         @click="role = 'tutor'"
       >
-        <span class="role-icon">🧑‍🏫</span>
+        <img class="role-icon" src="/signup/icon-tutor.svg" alt="icon-tutor" />
         <span>Tutor</span>
       </button>
     </div>
@@ -278,7 +278,7 @@ h3 {
   border-radius: 7px;
 
   background: #f8f9fb;
-  color: black;
+  color: #0F1B4C;
   cursor: pointer;
   font-family: inherit;
   font-size: 14px;
@@ -288,7 +288,7 @@ h3 {
 }
 
 .role-icon {
-  font-size: 25px;
+  width: 35px;
 }
 
 .role-card.selected {
@@ -313,7 +313,7 @@ h3 {
 .form-field label {
   font-size: 14px;
   font-weight: 600;
-  color: black;
+  color: #0F1B4C;
 }
 
 input,
