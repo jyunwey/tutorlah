@@ -1,5 +1,5 @@
 <script setup>
-import { reactive } from 'vue'
+import { reactive, ref } from 'vue'
 
 const form = reactive({
   subject: '',
@@ -13,12 +13,89 @@ const form = reactive({
   additionalDetails: '',
 })
 
-function handleSubmit() {
-  console.log('Assignment form:', {
-    ...form,
+const errors = reactive({})
+const formMessage = ref('')
+
+function clearError(fieldName) {
+  delete errors[fieldName]
+}
+
+function clearErrors() {
+  Object.keys(errors).forEach((fieldName) => {
+    delete errors[fieldName]
   })
 }
+
+function validateForm() {
+  clearErrors()
+
+  if (!form.subject) {
+    errors.subject = 'Please select a subject.'
+  }
+
+  if (!form.level) {
+    errors.level = 'Please select an academic level.'
+  }
+
+  if (!form.location) {
+    errors.location = 'Please select a preferred location.'
+  }
+
+  if (!form.learningMode) {
+    errors.learningMode = 'Please select a learning mode.'
+  }
+
+  const minimumRate = Number(form.minimumRate)
+  const maximumRate = Number(form.maximumRate)
+
+  if (
+    form.minimumRate === ''
+    || !Number.isFinite(minimumRate)
+    || minimumRate <= 0
+  ) {
+    errors.minimumRate =
+      'Please enter a valid minimum rate.'
+  }
+
+  if (
+    form.maximumRate === ''
+    || !Number.isFinite(maximumRate)
+    || maximumRate <= 0
+  ) {
+    errors.maximumRate =
+      'Please enter a valid maximum rate.'
+  }
+
+  if (
+    !errors.minimumRate
+    && !errors.maximumRate
+    && maximumRate < minimumRate
+  ) {
+    errors.maximumRate =
+      'Maximum rate cannot be lower than minimum rate.'
+  }
+
+  return Object.keys(errors).length === 0
+}
+
+function handleSubmit() {
+  formMessage.value = ''
+
+  if (!validateForm()) {
+    formMessage.value =
+      'Please correct the highlighted fields.'
+    return
+  }
+
+  console.log('Valid assignment form:', {
+    ...form,
+  })
+
+  formMessage.value =
+    'The form is valid and ready to be submitted.'
+}
 </script>
+
 <template>
   <main class="post-assignment-page">
     <h1>Post a Tuition Assignment</h1>
@@ -29,14 +106,20 @@ function handleSubmit() {
 
     <form
         class="assignment-form"
+        novalidate
         @submit.prevent="handleSubmit"
     >
       <div>
         <label for="subject">
-          Subject
+          Subject *
         </label>
 
-        <select id="subject" v-model="form.subject">
+        <select
+          id="subject"
+          v-model="form.subject"
+          :aria-invalid="Boolean(errors.subject)"
+          @change="clearError('subject')"
+        >
           <option value="">
             Select a subject
           </option>
@@ -53,14 +136,26 @@ function handleSubmit() {
             Science
           </option>
         </select>
+
+        <p
+          v-if="errors.subject"
+          class="field-error"
+        >
+          {{ errors.subject }}
+        </p>
       </div>
 
-      <div>
+     <div>
         <label for="level">
-          Academic Level
+          Academic Level *
         </label>
 
-        <select id="level" v-model="form.level">
+        <select
+          id="level"
+          v-model="form.level"
+          :aria-invalid="Boolean(errors.level)"
+          @change="clearError('level')"
+        >
           <option value="">
             Select an academic level
           </option>
@@ -77,14 +172,26 @@ function handleSubmit() {
             Junior College
           </option>
         </select>
+
+        <p
+          v-if="errors.level"
+          class="field-error"
+        >
+          {{ errors.level }}
+        </p>
       </div>
 
       <div>
         <label for="location">
-          Preferred Location
+          Preferred Location *
         </label>
 
-        <select id="location" v-model="form.location">
+        <select
+          id="location"
+          v-model="form.location"
+          :aria-invalid="Boolean(errors.location)"
+          @change="clearError('location')"
+        >
           <option value="">
             Select a location
           </option>
@@ -109,14 +216,26 @@ function handleSubmit() {
             Central
           </option>
         </select>
+
+        <p
+          v-if="errors.location"
+          class="field-error"
+        >
+          {{ errors.location }}
+        </p>
       </div>
 
       <div>
         <label for="learning-mode">
-          Preferred Learning Mode
+          Preferred Learning Mode *
         </label>
 
-        <select id="learning-mode" v-model="form.learningMode">
+        <select
+          id="learning-mode"
+          v-model="form.learningMode"
+          :aria-invalid="Boolean(errors.learningMode)"
+          @change="clearError('learningMode')"
+        >
           <option value="In-person">
             In-person
           </option>
@@ -129,30 +248,57 @@ function handleSubmit() {
             Either
           </option>
         </select>
+
+        <p
+          v-if="errors.learningMode"
+          class="field-error"
+        >
+          {{ errors.learningMode }}
+        </p>
       </div>
 
       <div>
         <label for="minimum-rate">
-          Minimum Hourly Rate
+          Minimum Hourly Rate *
         </label>
 
         <input
           id="minimum-rate"
-          v-model="form.minimumRate"
+          v-model.number="form.minimumRate"
           type="number"
+          min="1"
+          :aria-invalid="Boolean(errors.minimumRate)"
+          @input="clearError('minimumRate')"
         />
+
+        <p
+          v-if="errors.minimumRate"
+          class="field-error"
+        >
+          {{ errors.minimumRate }}
+        </p>
       </div>
 
       <div>
         <label for="maximum-rate">
-          Maximum Hourly Rate
+          Maximum Hourly Rate *
         </label>
 
         <input
           id="maximum-rate"
-          v-model="form.maximumRate"
+          v-model.number="form.maximumRate"
           type="number"
+          min="1"
+          :aria-invalid="Boolean(errors.maximumRate)"
+          @input="clearError('maximumRate')"
         />
+
+        <p
+          v-if="errors.maximumRate"
+          class="field-error"
+        >
+          {{ errors.maximumRate }}
+        </p>
       </div>
 
       <div>
@@ -202,6 +348,18 @@ function handleSubmit() {
           rows="5"
         ></textarea>
       </div>
+
+      <p
+        v-if="formMessage"
+        class="form-message"
+        :class="{
+          error: Object.keys(errors).length > 0,
+          success: Object.keys(errors).length === 0,
+        }"
+        aria-live="polite"
+      >
+        {{ formMessage }}
+      </p>
 
     <footer class="form-actions">
     <button
@@ -340,6 +498,34 @@ button {
 
 .submit-button:hover {
   background: #333333;
+}
+
+[aria-invalid='true'] {
+  border-color: black;
+  outline: 2px solid #999999;
+}
+
+.field-error {
+  margin: 0;
+  color: black;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.form-message {
+  grid-column: 1 / -1;
+  margin: 0;
+  padding: 12px;
+  border: 1px solid black;
+  border-radius: 6px;
+}
+
+.form-message.error {
+  background: #eeeeee;
+}
+
+.form-message.success {
+  background: white;
 }
 
 @media (max-width: 700px) {
