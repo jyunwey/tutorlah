@@ -6,6 +6,10 @@ import {
   registerUser,
 } from "../services/auth.js";
 
+//import { useRouter } from "vue-router";
+
+//const router = useRouter();
+
 const firstName = ref("");
 const lastName = ref("");
 const email = ref("");
@@ -16,12 +20,23 @@ const message = ref("");
 const messageType = ref("");
 const isSubmitting = ref(false);
 
+const isEmailValid = computed(() => {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.value.trim());
+});
+
+const isPasswordValid = computed(() => {
+  return (
+    password.value.length >= 8
+  );
+});
+
 const isFormValid = computed(() => {
   return (
     firstName.value.trim() !== "" &&
     lastName.value.trim() !== "" &&
-    /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.value.trim()) &&
-    password.value.length >= 8 
+    isEmailValid.value &&
+    isPasswordValid.value &&
+    ["student", "tutor"].includes(role.value)
   );
 });
 
@@ -52,11 +67,13 @@ async function handleRegistration() {
 
     messageType.value = "success";
 
-    firstName.value = "";
-    lastName.value = "";
-    email.value = "";
-    password.value = "";
-    role.value = "";
+    /*
+    if (role.value === "student") {
+      await router.push("/home");
+    } else if (role.value === "tutor") {
+      await router.push("/tutor-setup");
+    }
+    */
   } catch (error) {
     console.error(
       "Registration failed:",
@@ -113,18 +130,30 @@ async function handleRegistration() {
       </p>
 
       <div class="feature">
-        <h4>Join a trusted community</h4>
-        <p>Connect with genuine users</p>
+        <img src="/signup/icon-community.png" alt="" class="feature-icon" />
+
+        <div class="feature-text">
+          <h4>Join a trusted community</h4>
+          <p>Connect with genuine users</p>
+        </div>
       </div>
 
       <div class="feature">
-        <h4>Find the right match</h4>
-        <p>Personalised to your needs</p>
+        <img src="/signup/icon-match.png" alt="" class="feature-icon" />
+
+        <div class="feature-text">
+          <h4>Find the right match</h4>
+          <p>Personalised to your needs</p>
+        </div>
       </div>
 
       <div class="feature">
-        <h4>Achieve your goals</h4>
-        <p>Flexible and convenient learning</p>
+        <img src="/signup/icon-goals.png" alt="" class="feature-icon" />
+
+        <div class="feature-text">
+          <h4>Achieve your goals</h4>
+          <p>Flexible and convenient learning</p>
+        </div>
       </div>
     </template>
 
@@ -201,6 +230,12 @@ async function handleRegistration() {
           autocomplete="email"
           required
         />
+        <small
+          v-if="email && !isEmailValid"
+          class="validation-error"
+        >
+          Please enter a valid email address.
+        </small>
       </div>
 
       <div class="form-field">
@@ -217,8 +252,11 @@ async function handleRegistration() {
           required
         />
 
-        <small>
-          Use at least 8 characters.
+        <small
+          v-if="password && !isPasswordValid"
+          class="validation-error"
+        >
+          Password must have at least 8 characters.
         </small>
       </div>
 
@@ -365,5 +403,10 @@ select {
 
 .form-message.loading {
   color: #52658a;
+}
+
+.validation-error {
+  color: #d32f2f;
+  font-size: 12px;
 }
 </style>

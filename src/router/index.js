@@ -2,6 +2,8 @@ import RegisterView from
   "../views/RegisterView.vue";
 import FindTutorsView from
   "../views/FindTutorsView.vue";
+//import HomeView from "../views/HomeView.vue";
+//import TutorSetupView from "../views/TutorSetupView.vue";
 
 import { createRouter, createWebHistory } from 'vue-router'
 

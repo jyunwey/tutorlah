@@ -82,7 +82,7 @@ export async function registerUser({
         firstName: cleanFirstName,
         lastName: cleanLastName,
         email: user.email,
-        onboardingComplete: false,
+        onboardingComplete: role === "student",
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
       }

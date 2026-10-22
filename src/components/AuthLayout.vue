@@ -8,7 +8,8 @@
       <slot name="branding"></slot>
     </section>
 
-    <section class="auth-content">
+    <section
+      class="auth-content">
       <slot></slot>
     </section>
   </main>
@@ -61,26 +62,45 @@
 }
 
 .auth-branding :deep(p) {
-  font-size: 16px;
+  font-size: 17px;
   line-height: 1.5;
   color: #52658a;
+  margin-bottom: 30px;
 }
 
 .auth-branding :deep(.feature) {
   display: flex;
-  flex-direction: column;
-  gap: 4px;
+  flex-direction: row;
+  align-items: center;
+  gap: 12px;
   margin-bottom: 25px;
 }
 
-.auth-branding :deep(.feature h4) {
-  font-size: 18px;
-  font-weight: 700;
-  color: #0F1B4C;
+.auth-branding :deep(.feature-icon) {
+  width: 44px;
+  height: 44px;
+  object-fit: contain;
 }
 
-.auth-branding :deep(.feature h4),
-.auth-branding :deep(.feature p) {
+.auth-branding :deep(.feature-text) {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.auth-branding :deep(.feature-text h4) {
+  font-size: 17px;
+  font-weight: 700;
+  color: #0F1B4C;
+  margin: 0;
+}
+
+.auth-branding :deep(.feature-text p) {
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 1.4;
+  color: #52658a;
   margin: 0;
 }
 
