@@ -68,11 +68,7 @@ async function handleRegistration() {
     messageType.value = "success";
 
     /*
-    if (role.value === "student") {
-      await router.push("/home");
-    } else if (role.value === "tutor") {
-      await router.push("/tutor-setup");
-    }
+    await router.push("/create-profile");
     */
   } catch (error) {
     console.error(
