@@ -2,7 +2,9 @@ import RegisterView from
   "../views/RegisterView.vue";
 import FindTutorsView from
   "../views/FindTutorsView.vue";
-import ProfileView from 
+import HomeView from
+  "../views/HomeView.vue";
+import ProfileView from
   "../views/ProfileView.vue";
 
 import { createRouter, createWebHistory } from 'vue-router'
@@ -20,19 +22,24 @@ const router = createRouter({
       component: RegisterView,
     },
     {
+      path: "/home",
+      name: "home",
+      component: HomeView,
+    },
+    {
       path: "/find-tutors",
       name: "find-tutors",
       component: FindTutorsView,
     },
     {
-      path: "/:pathMatch(.*)*",
-      redirect: "/register",
-    },
-    {
       path: "/profile",
       name: "profile",
       component: ProfileView,
-    }
+    },
+    {
+      path: "/:pathMatch(.*)*",
+      redirect: "/register",
+    },
   ],
 })
 
