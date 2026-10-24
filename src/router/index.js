@@ -4,6 +4,8 @@ import FindTutorsView from
   "../views/FindTutorsView.vue";
 import ProfileView from 
   "../views/ProfileView.vue";
+import CreateProfileView from
+  "../views/CreateProfileView.vue";
 
 import { createRouter, createWebHistory } from 'vue-router'
 
@@ -23,6 +25,11 @@ const router = createRouter({
       path: "/find-tutors",
       name: "find-tutors",
       component: FindTutorsView,
+    },
+    {
+      path: "/create-profile",
+      name: "create-profile",
+      component: CreateProfileView,
     },
     {
       path: "/:pathMatch(.*)*",
