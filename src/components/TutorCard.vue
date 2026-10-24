@@ -19,6 +19,25 @@ defineEmits(["view-profile"]);
 const initials = computed(
   () => props.tutor.firstName[0] + props.tutor.lastName[0]
 );
+
+// e.g. "Ex-MOE Teacher | 6 years experience".
+// Both fields are optional, so show whichever the tutor has filled in.
+const credentials = computed(() => {
+  const { qualification, yearsOfExperience } = props.tutor;
+  const parts = [];
+
+  if (qualification) {
+    parts.push(qualification);
+  }
+
+  if (typeof yearsOfExperience === "number") {
+    parts.push(
+      `${yearsOfExperience} ${yearsOfExperience === 1 ? "year" : "years"} experience`
+    );
+  }
+
+  return parts.join(" | ");
+});
 </script>
 
 <template>
@@ -33,6 +52,8 @@ const initials = computed(
         <span class="star" aria-hidden="true">★</span>
         {{ tutor.rating.toFixed(1) }}
       </p>
+
+      <p v-if="credentials">{{ credentials }}</p>
 
       <p>{{ tutor.levels.join(", ") }} · {{ tutor.subjects.join(", ") }}</p>
 

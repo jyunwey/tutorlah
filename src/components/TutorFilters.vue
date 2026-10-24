@@ -93,8 +93,8 @@ function clearAll() {
         @change="updateFilter('level', $event.target.value)"
       >
         <option value="">Any level</option>
-        <option v-for="level in LEVELS" :key="level" :value="level">
-          {{ level }}
+        <option v-for="level in LEVELS" :key="level.value" :value="level.value">
+          {{ level.label }}
         </option>
       </select>
     </div>

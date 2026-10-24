@@ -114,13 +114,15 @@ created by [scripts/seedTutors.js](../scripts/seedTutors.js) as real tutor accou
 | `firstName`      | string    | yes      | Copied from `users/{uid}`                                |
 | `lastName`       | string    | yes      | Copied from `users/{uid}`                                |
 | `subjects`       | string[]  | yes      | Values from `SUBJECTS` in `src/constants/tutorFilters.js` |
-| `levels`         | string[]  | yes      | Values from `LEVELS`                                     |
+| `levels`         | string[]  | yes      | `value`s from `LEVELS` (e.g. `"Secondary"`)              |
 | `location`       | string    | yes      | One value from `LOCATIONS`                               |
 | `hourlyRate`     | number    | yes      | SGD per hour                                             |
 | `availability`   | string[]  | yes      | Values from `AVAILABILITY`                               |
 | `teachingStyles` | string[]  | yes      | Values from `TEACHING_STYLES`                            |
 | `rating`         | number    | yes      | Seeded value (0–5), since reviews are not implemented    |
 | `bio`            | string    | no       | Shown in the About tab of the Tutor Profile (FR-013)     |
+| `qualification`  | string    | no       | Short, e.g. `"Ex-MOE Teacher"`, `"NUS Graduate"` (FR-008) |
+| `yearsOfExperience` | number | no       | Shown as "6 years experience" on the tutor card (FR-008) |
 | `createdAt`      | timestamp | yes      | `serverTimestamp()`                                      |
 | `updatedAt`      | timestamp | yes      | `serverTimestamp()`                                      |
 
@@ -138,6 +140,8 @@ Example:
   "teachingStyles": ["Exam-focused", "Structured"],
   "rating": 4.8,
   "bio": "Former MOE teacher with 6 years of experience.",
+  "qualification": "Ex-MOE Teacher",
+  "yearsOfExperience": 6,
   "createdAt": "<server timestamp>",
   "updatedAt": "<server timestamp>"
 }
