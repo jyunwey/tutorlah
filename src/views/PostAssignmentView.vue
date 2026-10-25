@@ -1,5 +1,12 @@
 <script setup>
 import { reactive, ref } from 'vue'
+import { useRouter } from 'vue-router'
+
+import {
+  createAssignment,
+} from '../services/assignments.js'
+
+const router = useRouter()
 
 const form = reactive({
   subject: '',
@@ -16,6 +23,8 @@ const form = reactive({
 
 const errors = reactive({})
 const formMessage = ref('')
+const formMessageType = ref('')
+const isSubmitting = ref(false)
 
 function clearError(fieldName) {
   delete errors[fieldName]
@@ -79,21 +88,68 @@ function validateForm() {
   return Object.keys(errors).length === 0
 }
 
-function handleSubmit() {
+async function handleSubmit() {
   formMessage.value = ''
+  formMessageType.value = ''
 
   if (!validateForm()) {
     formMessage.value =
       'Please correct the highlighted fields.'
+
+    formMessageType.value = 'error'
     return
   }
 
-  console.log('Valid assignment form:', {
-    ...form,
-  })
+  if (isSubmitting.value) {
+    return
+  }
 
-  formMessage.value =
-    'The form is valid and ready to be submitted.'
+  isSubmitting.value = true
+
+  try {
+    const assignmentId =
+      await createAssignment({
+        ...form,
+      })
+
+    console.log(
+      'Created assignment:',
+      assignmentId
+    )
+
+    formMessage.value =
+      'Assignment posted successfully.'
+
+    formMessageType.value = 'success'
+  } catch (error) {
+    console.error(
+      'Failed to post assignment:',
+      error
+    )
+
+    if (error.code === 'auth/no-current-user') {
+      formMessage.value =
+        'Please sign in before posting an assignment.'
+    } else if (error.code === 'permission-denied') {
+      formMessage.value =
+        'You do not have permission to post an assignment.'
+    } else {
+      formMessage.value =
+        'Could not post the assignment. Please try again.'
+    }
+
+    formMessageType.value = 'error'
+  } finally {
+    isSubmitting.value = false
+  }
+}
+
+function handleCancel() {
+  if (isSubmitting.value) {
+    return
+  }
+
+  router.back()
 }
 </script>
 
@@ -424,31 +480,34 @@ function handleSubmit() {
         ></textarea>
       </div>
 
-      <p
-        v-if="formMessage"
-        class="form-message"
-        :class="{
-          error: Object.keys(errors).length > 0,
-          success: Object.keys(errors).length === 0,
-        }"
-        aria-live="polite"
-      >
-        {{ formMessage }}
-      </p>
+    <p
+      v-if="formMessage"
+      class="form-message"
+      :class="formMessageType"
+      aria-live="polite"
+    >
+      {{ formMessage }}
+    </p>
 
     <footer class="form-actions">
     <button
         class="cancel-button"
         type="button"
+        @click="handleCancel"
     >
         Cancel
     </button>
 
     <button
-        class="submit-button"
-        type="submit"
+      class="submit-button"
+      type="submit"
+      :disabled="isSubmitting"
     >
-        Post Assignment
+      {{
+        isSubmitting
+          ? 'Posting...'
+          : 'Post Assignment'
+      }}
     </button>
     </footer>
     </form>
@@ -553,6 +612,11 @@ button {
   font: inherit;
   font-weight: 600;
   cursor: pointer;
+}
+
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
 }
 
 .cancel-button {
