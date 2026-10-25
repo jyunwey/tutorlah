@@ -6,6 +6,8 @@ import PostAssignmentView from
   "../views/PostAssignmentView.vue";
 import ProfileView from
   "../views/ProfileView.vue";
+//import HomeView from "../views/HomeView.vue";
+//import TutorSetupView from "../views/TutorSetupView.vue";
 import TutorProfileView from
   "../views/TutorProfileView.vue";
 
