@@ -1,5 +1,7 @@
 import {
   collection,
+  doc,
+  getDoc,
   getDocs,
 } from "firebase/firestore";
 
@@ -16,4 +18,21 @@ export async function fetchTutors() {
     id: tutorDoc.id,
     ...tutorDoc.data(),
   }));
+}
+
+// Loads one tutor for the Tutor Profile page (FR-013).
+// Returns null if there is no tutor with this ID.
+export async function fetchTutor(tutorId) {
+  const snapshot = await getDoc(
+    doc(db, "tutorProfiles", tutorId)
+  );
+
+  if (!snapshot.exists()) {
+    return null;
+  }
+
+  return {
+    id: snapshot.id,
+    ...snapshot.data(),
+  };
 }

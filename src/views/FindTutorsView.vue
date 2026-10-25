@@ -3,21 +3,37 @@ import {
   computed,
   onMounted,
   ref,
+  watch,
 } from "vue";
+import {
+  useRoute,
+  useRouter,
+} from "vue-router";
 
 import TutorCard from "../components/TutorCard.vue";
 import TutorFilters from "../components/TutorFilters.vue";
 import { createEmptyFilters } from "../constants/tutorFilters.js";
 import { fetchTutors } from "../services/tutors.js";
 import { getCompatibility } from "../utils/compatibility.js";
+import {
+  filtersFromQuery,
+  filtersToQuery,
+} from "../utils/filterQuery.js";
+
+const route = useRoute();
+const router = useRouter();
 
 const tutors = ref([]);
 const isLoading = ref(true);
 const errorMessage = ref("");
 
-// TODO (FR-013): keep the filters in the URL query so that
-// "Back to Results" on the Tutor Profile page restores them.
-const filters = ref(createEmptyFilters());
+// FR-013: the filters live in the URL (e.g. ?subject=Mathematics), so
+// "Back to Results" on the Tutor Profile page brings them back.
+const filters = ref(filtersFromQuery(route.query));
+
+watch(filters, (newFilters) => {
+  router.replace({ query: filtersToQuery(newFilters) });
+});
 
 // Phones only: the filters panel starts collapsed (see the CSS).
 const showFilters = ref(false);
@@ -97,9 +113,12 @@ function clearFilters() {
   filters.value = createEmptyFilters();
 }
 
-// TODO (FR-013): navigate to the Tutor Profile page.
+// FR-008: View Profile opens the tutor's profile page (FR-013).
 function viewProfile(tutorId) {
-  console.log("View profile:", tutorId);
+  router.push({
+    name: "tutor-profile",
+    params: { id: tutorId },
+  });
 }
 
 onMounted(async () => {

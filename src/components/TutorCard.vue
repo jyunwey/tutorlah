@@ -1,6 +1,12 @@
 <script setup>
 import { computed } from "vue";
 
+import MatchRing from "./MatchRing.vue";
+import {
+  formatCredentials,
+  getInitials,
+} from "../utils/tutorDisplay.js";
+
 const props = defineProps({
   tutor: {
     type: Object,
@@ -15,29 +21,8 @@ const props = defineProps({
 
 defineEmits(["view-profile"]);
 
-// Initials avatar replaces the profile photo.
-const initials = computed(
-  () => props.tutor.firstName[0] + props.tutor.lastName[0]
-);
-
-// e.g. "Ex-MOE Teacher | 6 years experience".
-// Both fields are optional, so show whichever the tutor has filled in.
-const credentials = computed(() => {
-  const { qualification, yearsOfExperience } = props.tutor;
-  const parts = [];
-
-  if (qualification) {
-    parts.push(qualification);
-  }
-
-  if (typeof yearsOfExperience === "number") {
-    parts.push(
-      `${yearsOfExperience} ${yearsOfExperience === 1 ? "year" : "years"} experience`
-    );
-  }
-
-  return parts.join(" | ");
-});
+const initials = computed(() => getInitials(props.tutor));
+const credentials = computed(() => formatCredentials(props.tutor));
 </script>
 
 <template>
@@ -66,16 +51,9 @@ const credentials = computed(() => {
       </ul>
     </div>
 
-    <!-- FR-011: the ring fills to the compatibility percentage. -->
+    <!-- FR-011 -->
     <div class="match">
-      <div
-        class="match-ring"
-        :style="{ '--percent': compatibility ?? 0 }"
-      >
-        <span class="match-value">
-          {{ compatibility === null ? "--" : compatibility }}%
-        </span>
-      </div>
+      <MatchRing :value="compatibility" />
       <p class="match-label">Match</p>
     </div>
 
@@ -165,32 +143,6 @@ const credentials = computed(() => {
   display: grid;
   justify-items: center;
   gap: 6px;
-}
-
-/* A conic gradient draws the filled part of the ring;
-   the white .match-value circle on top turns it into a ring. */
-.match-ring {
-  display: grid;
-  place-items: center;
-  width: 88px;
-  height: 88px;
-  border-radius: 50%;
-  background: conic-gradient(
-    var(--color-primary) calc(var(--percent) * 1%),
-    var(--color-ring-track) 0
-  );
-}
-
-.match-value {
-  display: grid;
-  place-items: center;
-  width: 72px;
-  height: 72px;
-  border-radius: 50%;
-  background: var(--color-surface);
-  color: var(--color-text);
-  font-size: 1.35rem;
-  font-weight: 700;
 }
 
 .match-label {
