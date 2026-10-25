@@ -172,19 +172,95 @@ service cloud.firestore {
     // Post Assignment (FR-018, FR-019) and Find Assignments (FR-014, FR-015).
     // TODO: add field checks once the Post Assignment fields are final.
     match /assignments/{assignmentId} {
+      function hasValidAssignmentFields() {
+        return request.resource.data.keys().hasAll([
+            "studentId",
+            "subject",
+            "level",
+            "location",
+            "learningMode",
+            "minimumRate",
+            "maximumRate",
+            "preferredDay",
+            "preferredTimeSlot",
+            "teachingStyle",
+            "additionalDetails",
+            "status",
+            "createdAt",
+            "updatedAt"
+          ])
+
+          && request.resource.data.keys().hasOnly([
+            "studentId",
+            "subject",
+            "level",
+            "location",
+            "learningMode",
+            "minimumRate",
+            "maximumRate",
+            "preferredDay",
+            "preferredTimeSlot",
+            "teachingStyle",
+            "additionalDetails",
+            "status",
+            "createdAt",
+            "updatedAt"
+          ])
+
+          && request.resource.data.studentId is string
+          && request.resource.data.subject is string
+          && request.resource.data.level is string
+          && request.resource.data.location is string
+          && request.resource.data.learningMode
+            in ["In-person", "Online", "Either"]
+
+          && request.resource.data.minimumRate is number
+          && request.resource.data.minimumRate > 0
+
+          && request.resource.data.maximumRate is number
+          && request.resource.data.maximumRate
+            >= request.resource.data.minimumRate
+
+          && request.resource.data.preferredDay is string
+          && request.resource.data.preferredTimeSlot is string
+          && request.resource.data.teachingStyle is string
+          && request.resource.data.additionalDetails is string
+
+          && request.resource.data.status
+            in ["open", "matched", "closed"];
+      }
+
       allow read: if isSignedIn();
 
       allow create: if isSignedIn()
         && currentUserRole() == "student"
+
         && request.resource.data.studentId
-          == request.auth.uid;
+          == request.auth.uid
+
+        && request.resource.data.status == "open"
+        && hasValidAssignmentFields()
+
+        && request.resource.data.createdAt
+          == request.time
+
+        && request.resource.data.updatedAt
+          == request.time;
 
       allow update: if isSignedIn()
         && resource.data.studentId
           == request.auth.uid
 
         && request.resource.data.studentId
-          == resource.data.studentId;
+          == resource.data.studentId
+
+        && request.resource.data.createdAt
+          == resource.data.createdAt
+
+        && hasValidAssignmentFields()
+
+        && request.resource.data.updatedAt
+          == request.time;
 
       allow delete: if isSignedIn()
         && resource.data.studentId

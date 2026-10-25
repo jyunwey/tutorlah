@@ -154,18 +154,22 @@ Example:
 A tuition request created by a student. Readable by any signed-in user; only the student who
 posted it can edit or delete it.
 
-| Field        | Type      | Notes                                              |
-| ------------ | --------- | -------------------------------------------------- |
-| `studentId`  | string    | → `users/{uid}` where `role == "student"`          |
-| `subject`    | string    | e.g. `"Mathematics"`                               |
-| `level`      | string    | e.g. `"Secondary"`                                 |
-| `budget`     | number    | Max SGD per hour                                   |
-| `location`   | string    | Area or `"Online"`                                 |
-| `schedule`   | string    | Free text for now, e.g. `"Weekday evenings"`       |
-| `status`     | string    | `"open"` → `"matched"` → `"closed"`                |
-| `createdAt`  | timestamp |                                                    |
-| `updatedAt`  | timestamp |                                                    |
-
+| Field                 | Type      | Required | Notes                                      |
+| --------------------- | --------- | -------- | ------------------------------------------ |
+| `studentId`           | string    | yes      | Firebase UID of the student/parent         |
+| `subject`             | string    | yes      | Subject requested                          |
+| `level`               | string    | yes      | Academic level                             |
+| `location`            | string    | yes      | Preferred area in Singapore                |
+| `learningMode`        | string    | yes      | `"In-person"`, `"Online"` or `"Either"`     |
+| `minimumRate`         | number    | yes      | Minimum hourly rate in SGD                 |
+| `maximumRate`         | number    | yes      | Maximum hourly rate in SGD                 |
+| `preferredDay`        | string    | no       | Monday to Sunday, or an empty string       |
+| `preferredTimeSlot`   | string    | no       | Normalised two-hour slot, or empty string  |
+| `teachingStyle`       | string    | yes      | Selected style or `"No preference"`        |
+| `additionalDetails`   | string    | no       | Extra information supplied by the student |
+| `status`              | string    | yes      | `"open"` initially                         |
+| `createdAt`           | timestamp | yes      | Firestore server timestamp                 |
+| `updatedAt`           | timestamp | yes      | Firestore server timestamp                 |
 ## `matches/{matchId}` 📝
 
 Links a tutor to an assignment. A tutor applying creates a `pending` match; the student accepts
