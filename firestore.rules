@@ -122,6 +122,8 @@ service cloud.firestore {
             "teachingStyles",
             "rating",
             "bio",
+            "qualification",
+            "yearsOfExperience",
             "createdAt",
             "updatedAt"
           ])
@@ -134,7 +136,13 @@ service cloud.firestore {
           && request.resource.data.hourlyRate is number
           && request.resource.data.availability is list
           && request.resource.data.teachingStyles is list
-          && request.resource.data.rating is number;
+          && request.resource.data.rating is number
+
+          // Optional fields: checked only if present.
+          && request.resource.data.get("qualification", "")
+            is string
+          && request.resource.data.get("yearsOfExperience", 0)
+            is number;
       }
 
       allow read: if isSignedIn();
