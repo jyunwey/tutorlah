@@ -23,95 +23,71 @@ const initials = computed(
 
 <template>
   <article class="tutor-card">
-    <header class="card-header">
-      <div class="avatar" aria-hidden="true">{{ initials }}</div>
+    <div class="avatar" aria-hidden="true">{{ initials }}</div>
 
-      <div>
-        <h3>{{ tutor.firstName }} {{ tutor.lastName }}</h3>
-        <!-- Seeded rating, since reviews are not implemented. -->
-        <p class="rating">★ {{ tutor.rating.toFixed(1) }}</p>
-      </div>
+    <div class="details">
+      <h3>{{ tutor.firstName }} {{ tutor.lastName }}</h3>
 
-      <!-- FR-011 -->
-      <p class="compatibility">
-        {{ compatibility === null ? "--" : compatibility }}% match
+      <!-- Seeded rating, since reviews are not implemented. -->
+      <p class="rating">★ {{ tutor.rating.toFixed(1) }}</p>
+
+      <p>{{ tutor.levels.join(", ") }} · {{ tutor.subjects.join(", ") }}</p>
+
+      <p>${{ tutor.hourlyRate }}/hr • {{ tutor.location }}</p>
+
+      <ul class="tags">
+        <li v-for="style in tutor.teachingStyles" :key="style">
+          {{ style }}
+        </li>
+      </ul>
+    </div>
+
+    <!-- FR-011 -->
+    <div class="match">
+      <p class="match-value">
+        {{ compatibility === null ? "--" : compatibility }}%
       </p>
-    </header>
+      <p class="match-label">Match</p>
+    </div>
 
-    <dl class="details">
-      <dt>Subjects</dt>
-      <dd>{{ tutor.subjects.join(", ") }}</dd>
-
-      <dt>Levels</dt>
-      <dd>{{ tutor.levels.join(", ") }}</dd>
-
-      <dt>Location</dt>
-      <dd>{{ tutor.location }}</dd>
-
-      <dt>Rate</dt>
-      <dd>${{ tutor.hourlyRate }}/hr</dd>
-    </dl>
-
-    <ul class="tags">
-      <li v-for="style in tutor.teachingStyles" :key="style">
-        {{ style }}
-      </li>
-    </ul>
-
-    <button type="button" @click="$emit('view-profile', tutor.id)">
-      View Profile
-    </button>
+    <div class="actions">
+      <button type="button" @click="$emit('view-profile', tutor.id)">
+        View Profile
+      </button>
+      <!-- The Apply button (FR-009) is added in Sprint 2. -->
+    </div>
   </article>
 </template>
 
 <style scoped>
 .tutor-card {
   display: grid;
-  gap: 14px;
+  grid-template-columns: auto 1fr auto auto;
+  align-items: center;
+  gap: 20px;
   padding: 20px;
   background: white;
   border-radius: 12px;
 }
 
-.card-header {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.card-header h3,
-.card-header p {
-  margin: 0;
-}
-
 .avatar {
   display: grid;
   place-items: center;
-  width: 48px;
-  height: 48px;
-  flex-shrink: 0;
-  border-radius: 50%;
+  width: 96px;
+  height: 96px;
+  border-radius: 12px;
   background: #dde7f5;
-  font-weight: 600;
-}
-
-.compatibility {
-  margin-left: auto !important;
+  font-size: 1.75rem;
   font-weight: 600;
 }
 
 .details {
   display: grid;
-  grid-template-columns: auto 1fr;
-  gap: 4px 12px;
-  margin: 0;
+  gap: 4px;
 }
 
-.details dt {
-  color: #666;
-}
-
-.details dd {
+.details h3,
+.details p {
   margin: 0;
 }
 
@@ -119,7 +95,7 @@ const initials = computed(
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
-  margin: 0;
+  margin: 6px 0 0;
   padding: 0;
   list-style: none;
 }
@@ -131,9 +107,28 @@ const initials = computed(
   font-size: 0.85rem;
 }
 
-button {
-  padding: 10px;
+.match {
+  text-align: center;
+}
+
+.match p {
+  margin: 0;
+}
+
+.match-value {
+  font-size: 1.5rem;
+  font-weight: 600;
+}
+
+.actions button {
+  padding: 10px 16px;
   font: inherit;
   cursor: pointer;
+}
+
+@media (max-width: 720px) {
+  .tutor-card {
+    grid-template-columns: auto 1fr;
+  }
 }
 </style>

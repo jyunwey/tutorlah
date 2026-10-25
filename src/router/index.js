@@ -2,8 +2,13 @@ import RegisterView from
   "../views/RegisterView.vue";
 import FindTutorsView from
   "../views/FindTutorsView.vue";
+<<<<<<< HEAD
 import PostAssignmentView from
   "../views/PostAssignmentView.vue";
+=======
+import ProfileView from 
+  "../views/ProfileView.vue";
+>>>>>>> origin/main
 
 import { createRouter, createWebHistory } from 'vue-router'
 
@@ -33,6 +38,11 @@ const router = createRouter({
       path: "/:pathMatch(.*)*",
       redirect: "/register",
     },
+    {
+      path: "/profile",
+      name: "profile",
+      component: ProfileView,
+    }
   ],
 })
 
