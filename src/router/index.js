@@ -7,9 +7,9 @@ import PostAssignmentView from
 import ProfileView from
   "../views/ProfileView.vue";
 //import HomeView from "../views/HomeView.vue";
-//import TutorSetupView from "../views/TutorSetupView.vue";
 import TutorProfileView from
   "../views/TutorProfileView.vue";
+import LoginView from "../views/LoginView.vue";
 
 import { createRouter, createWebHistory } from 'vue-router'
 
@@ -48,6 +48,11 @@ const router = createRouter({
     {
       path: "/:pathMatch(.*)*",
       redirect: "/register",
+    },
+    {
+      path: "/login",
+      name: "login",
+      component: LoginView,
     },
   ],
 })
