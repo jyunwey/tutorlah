@@ -119,7 +119,7 @@ created by [scripts/seedTutors.js](../scripts/seedTutors.js) as real tutor accou
 | `hourlyRate`     | number    | yes      | SGD per hour                                             |
 | `availability`   | string[]  | yes      | Values from `AVAILABILITY`                               |
 | `teachingStyles` | string[]  | yes      | Values from `TEACHING_STYLES`                            |
-| `rating`         | number    | yes      | Seeded value (0–5), since reviews are not implemented    |
+| `rating`         | number    | no       | Seeded demo tutors only (0–5), since reviews are not implemented. The rules only let `@tutorlah.test` accounts set it; tutors without one show as "New tutor". |
 | `bio`            | string    | no       | Shown in the About tab of the Tutor Profile (FR-013)     |
 | `qualification`  | string    | no       | Short, e.g. `"Ex-MOE Teacher"`, `"NUS Graduate"` (FR-008) |
 | `yearsOfExperience` | number | no       | Shown as "6 years experience" on the tutor card (FR-008) |

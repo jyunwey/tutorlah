@@ -24,6 +24,12 @@ service cloud.firestore {
       ).data.role;
     }
 
+    // Demo tutors created by scripts/seedTutors.js.
+    function isSeededDemoAccount() {
+      return request.auth.token.email
+        .matches(".*@tutorlah[.]test$");
+    }
+
     // Private account details, including contact details.
     match /users/{uid} {
       allow create: if isDocumentOwner(uid)
@@ -106,7 +112,6 @@ service cloud.firestore {
             "hourlyRate",
             "availability",
             "teachingStyles",
-            "rating",
             "createdAt",
             "updatedAt"
           ])
@@ -136,13 +141,20 @@ service cloud.firestore {
           && request.resource.data.hourlyRate is number
           && request.resource.data.availability is list
           && request.resource.data.teachingStyles is list
-          && request.resource.data.rating is number
 
           // Optional fields: checked only if present.
+          && request.resource.data.get("rating", 0)
+            is number
           && request.resource.data.get("qualification", "")
             is string
           && request.resource.data.get("yearsOfExperience", 0)
-            is number;
+            is number
+
+          // Ratings are seeded demo values (Refined FR-008), so only the
+          // seeded @tutorlah.test accounts may have one. Real tutors can't
+          // give themselves a rating; the app shows them as "New tutor".
+          && (!("rating" in request.resource.data)
+            || isSeededDemoAccount());
       }
 
       allow read: if isSignedIn();
