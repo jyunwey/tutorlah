@@ -114,13 +114,15 @@ created by [scripts/seedTutors.js](../scripts/seedTutors.js) as real tutor accou
 | `firstName`      | string    | yes      | Copied from `users/{uid}`                                |
 | `lastName`       | string    | yes      | Copied from `users/{uid}`                                |
 | `subjects`       | string[]  | yes      | Values from `SUBJECTS` in `src/constants/tutorFilters.js` |
-| `levels`         | string[]  | yes      | Values from `LEVELS`                                     |
+| `levels`         | string[]  | yes      | `value`s from `LEVELS` (e.g. `"Secondary"`)              |
 | `location`       | string    | yes      | One value from `LOCATIONS`                               |
 | `hourlyRate`     | number    | yes      | SGD per hour                                             |
 | `availability`   | string[]  | yes      | Values from `AVAILABILITY`                               |
 | `teachingStyles` | string[]  | yes      | Values from `TEACHING_STYLES`                            |
-| `rating`         | number    | yes      | Seeded value (0–5), since reviews are not implemented    |
+| `rating`         | number    | no       | Seeded demo tutors only (0–5), since reviews are not implemented. The rules only let `@tutorlah.test` accounts set it; tutors without one show as "New tutor". |
 | `bio`            | string    | no       | Shown in the About tab of the Tutor Profile (FR-013)     |
+| `qualification`  | string    | no       | Short, e.g. `"Ex-MOE Teacher"`, `"NUS Graduate"` (FR-008) |
+| `yearsOfExperience` | number | no       | Shown as "6 years experience" on the tutor card (FR-008) |
 | `createdAt`      | timestamp | yes      | `serverTimestamp()`                                      |
 | `updatedAt`      | timestamp | yes      | `serverTimestamp()`                                      |
 
@@ -138,6 +140,8 @@ Example:
   "teachingStyles": ["Exam-focused", "Structured"],
   "rating": 4.8,
   "bio": "Former MOE teacher with 6 years of experience.",
+  "qualification": "Ex-MOE Teacher",
+  "yearsOfExperience": 6,
   "createdAt": "<server timestamp>",
   "updatedAt": "<server timestamp>"
 }
@@ -150,18 +154,22 @@ Example:
 A tuition request created by a student. Readable by any signed-in user; only the student who
 posted it can edit or delete it.
 
-| Field        | Type      | Notes                                              |
-| ------------ | --------- | -------------------------------------------------- |
-| `studentId`  | string    | → `users/{uid}` where `role == "student"`          |
-| `subject`    | string    | e.g. `"Mathematics"`                               |
-| `level`      | string    | e.g. `"Secondary"`                                 |
-| `budget`     | number    | Max SGD per hour                                   |
-| `location`   | string    | Area or `"Online"`                                 |
-| `schedule`   | string    | Free text for now, e.g. `"Weekday evenings"`       |
-| `status`     | string    | `"open"` → `"matched"` → `"closed"`                |
-| `createdAt`  | timestamp |                                                    |
-| `updatedAt`  | timestamp |                                                    |
-
+| Field                 | Type      | Required | Notes                                      |
+| --------------------- | --------- | -------- | ------------------------------------------ |
+| `studentId`           | string    | yes      | Firebase UID of the student/parent         |
+| `subject`             | string    | yes      | Subject requested                          |
+| `level`               | string    | yes      | Academic level                             |
+| `location`            | string    | yes      | Preferred area in Singapore                |
+| `learningMode`        | string    | yes      | `"In-person"`, `"Online"` or `"Either"`     |
+| `minimumRate`         | number    | yes      | Minimum hourly rate in SGD                 |
+| `maximumRate`         | number    | yes      | Maximum hourly rate in SGD                 |
+| `preferredDay`        | string    | no       | Monday to Sunday, or an empty string       |
+| `preferredTimeSlot`   | string    | no       | Normalised two-hour slot, or empty string  |
+| `teachingStyle`       | string    | yes      | Selected style or `"No preference"`        |
+| `additionalDetails`   | string    | no       | Extra information supplied by the student |
+| `status`              | string    | yes      | `"open"` initially                         |
+| `createdAt`           | timestamp | yes      | Firestore server timestamp                 |
+| `updatedAt`           | timestamp | yes      | Firestore server timestamp                 |
 ## `matches/{matchId}` 📝
 
 Links a tutor to an assignment. A tutor applying creates a `pending` match; the student accepts
