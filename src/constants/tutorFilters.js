@@ -11,10 +11,12 @@ export const SUBJECTS = [
   "Biology",
 ];
 
+// value is what's stored in Firestore; label is what users see
+// (FR-010: levels range from PSLE to A Level).
 export const LEVELS = [
-  "Primary",
-  "Secondary",
-  "Junior College",
+  { value: "Primary", label: "Primary (PSLE)" },
+  { value: "Secondary", label: "Secondary (O Level)" },
+  { value: "Junior College", label: "Junior College (A Level)" },
 ];
 
 export const LOCATIONS = [
