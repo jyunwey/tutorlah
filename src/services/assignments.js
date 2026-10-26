@@ -1,7 +1,10 @@
 import {
   addDoc,
   collection,
+  getDocs,
+  query,
   serverTimestamp,
+  where,
 } from 'firebase/firestore'
 
 import {
@@ -55,4 +58,30 @@ export async function createAssignment({
   )
 
   return documentReference.id
+}
+
+export async function fetchAssignments() {
+  const assignmentsQuery = query(
+    collection(db, 'assignments'),
+    where('status', '==', 'open')
+  )
+
+  const snapshot = await getDocs(assignmentsQuery)
+
+  const assignments = snapshot.docs.map(
+    (assignmentDocument) => ({
+      id: assignmentDocument.id,
+      ...assignmentDocument.data(),
+    })
+  )
+
+  return assignments.sort((firstAssignment, secondAssignment) => {
+    const firstCreatedAt =
+      firstAssignment.createdAt?.toMillis?.() ?? 0
+
+    const secondCreatedAt =
+      secondAssignment.createdAt?.toMillis?.() ?? 0
+
+    return secondCreatedAt - firstCreatedAt
+  })
 }
