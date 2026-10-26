@@ -16,6 +16,7 @@ const props = defineProps({
   initialValues: { type: Object, default: () => ({}) },
   submitLabel: { type: String, default: "Save" },
   isSaving: { type: Boolean, default: false },
+  saveError: { type: String, default: "" },
   showCancel: { type: Boolean, default: false },
 });
 
@@ -248,7 +249,8 @@ async function handleSubmit() {
     </section>
 
     <div class="form-footer">
-      <p class="footnote"><em class="required" aria-hidden="true">*</em> Required</p>
+      <p v-if="saveError" class="save-error" role="alert">{{ saveError }}</p>
+      <p v-else class="footnote"><em class="required" aria-hidden="true">*</em> Required</p>
       <div class="actions">
         <button v-if="showCancel" type="button" class="secondary-button" :disabled="isSaving" @click="$emit('cancel')">Cancel</button>
         <button type="submit" class="primary-button" :disabled="isSaving">{{ isSaving ? "Saving..." : submitLabel }}</button>
@@ -285,6 +287,7 @@ h2 { margin: 0 0 16px; font-size: 18px; letter-spacing: -.3px; }
 .required { color: #c4320a; font-style: normal; }
 .optional { color: #8a90a8; font-size: 12px; font-weight: 400; }
 .form-footer { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding-top: 22px; border-top: 1px solid #e7eaf3; }
+.save-error { margin: 0; color: #b42318; font-size: 14px; font-weight: 600; }
 .footnote { margin: 0; color: #717887; font-size: 13px; }
 .actions { display: flex; gap: 12px; }
 .primary-button { padding: 12px 22px; border: 0; border-radius: 6px; background: #008563; color: #fff; font: inherit; font-size: 15px; font-weight: 700; cursor: pointer; }

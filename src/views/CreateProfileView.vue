@@ -1,12 +1,17 @@
 <script setup>
 import { computed, onMounted, onUnmounted, ref } from "vue";
-import { RouterLink } from "vue-router";
+import { RouterLink, useRouter } from "vue-router";
 import { doc, getDoc } from "firebase/firestore";
 import { db } from "../firebase.js";
 import { observeCurrentUser } from "../services/auth.js";
 import ProfileForm from "../components/ProfileForm.vue";
+import { createProfile } from "../services/profile.js";
 
+const router = useRouter();
 const account = ref(null);
+const userId = ref("");
+const isSaving = ref(false);
+const saveError = ref("");
 const isLoading = ref(true);
 const isSignedIn = ref(false);
 const errorMessage = ref("");
@@ -27,6 +32,7 @@ onMounted(() => {
     account.value = null;
     errorMessage.value = "";
     isSignedIn.value = Boolean(user);
+    userId.value = user?.uid || "";
     isLoading.value = true;
 
     if (!user) {
@@ -51,6 +57,20 @@ onMounted(() => {
     }
   });
 });
+
+async function handleSubmit(values) {
+  isSaving.value = true;
+  saveError.value = "";
+  try {
+    await createProfile(userId.value, account.value, values);
+    await router.push("/home");
+  } catch (error) {
+    console.error("Could not save profile:", error);
+    saveError.value = "We could not save your profile. Please try again.";
+  } finally {
+    isSaving.value = false;
+  }
+}
 
 onUnmounted(() => {
   requestId++;
@@ -97,7 +117,13 @@ onUnmounted(() => {
             <span class="role-badge">{{ roleLabel }}</span>
           </div>
 
-          <ProfileForm :role="account.role" submit-label="Save and Continue" />
+          <ProfileForm
+            :role="account.role"
+            submit-label="Save and Continue"
+            :is-saving="isSaving"
+            :save-error="saveError"
+            @submit="handleSubmit"
+          />
         </template>
       </main>
     </div>
