@@ -4,8 +4,13 @@ import FindTutorsView from
   "../views/FindTutorsView.vue";
 import HomeView from
   "../views/HomeView.vue";
+import PostAssignmentView from
+  "../views/PostAssignmentView.vue";
 import ProfileView from
   "../views/ProfileView.vue";
+//import TutorSetupView from "../views/TutorSetupView.vue";
+import TutorProfileView from
+  "../views/TutorProfileView.vue";
 
 import { createRouter, createWebHistory } from 'vue-router'
 
@@ -27,9 +32,19 @@ const router = createRouter({
       component: HomeView,
     },
     {
+    path: "/post-assignment",
+    name: "post-assignment",
+    component: PostAssignmentView,
+    },
+    {
       path: "/find-tutors",
       name: "find-tutors",
       component: FindTutorsView,
+    },
+    {
+      path: "/tutors/:id",
+      name: "tutor-profile",
+      component: TutorProfileView,
     },
     {
       path: "/profile",
