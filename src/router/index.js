@@ -10,6 +10,8 @@ import ProfileView from
 //import TutorSetupView from "../views/TutorSetupView.vue";
 import TutorProfileView from
   "../views/TutorProfileView.vue";
+import FindAssignmentsView from
+  "../views/FindAssignmentsView.vue";
 
 import { createRouter, createWebHistory } from 'vue-router'
 
@@ -44,6 +46,11 @@ const router = createRouter({
       path: "/profile",
       name: "profile",
       component: ProfileView,
+    },
+     {
+      path: '/find-assignments',
+      name: 'find-assignments',
+      component: FindAssignmentsView,
     },
     {
       path: "/:pathMatch(.*)*",
