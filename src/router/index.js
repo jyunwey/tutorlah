@@ -2,11 +2,12 @@ import RegisterView from
   "../views/RegisterView.vue";
 import FindTutorsView from
   "../views/FindTutorsView.vue";
+import HomeView from
+  "../views/HomeView.vue";
 import PostAssignmentView from
   "../views/PostAssignmentView.vue";
 import ProfileView from
   "../views/ProfileView.vue";
-//import HomeView from "../views/HomeView.vue";
 //import TutorSetupView from "../views/TutorSetupView.vue";
 import TutorProfileView from
   "../views/TutorProfileView.vue";
@@ -24,6 +25,11 @@ const router = createRouter({
       path: "/register",
       name: "register",
       component: RegisterView,
+    },
+    {
+      path: "/home",
+      name: "home",
+      component: HomeView,
     },
     {
     path: "/post-assignment",
