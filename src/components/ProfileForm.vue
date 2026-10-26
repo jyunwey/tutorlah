@@ -1,5 +1,5 @@
 <script setup>
-import { computed, reactive } from "vue";
+import { computed, nextTick, reactive, ref } from "vue";
 import {
   AVAILABILITY,
   BUDGET_MAX,
@@ -19,7 +19,7 @@ const props = defineProps({
   showCancel: { type: Boolean, default: false },
 });
 
-defineEmits(["submit", "cancel"]);
+const emit = defineEmits(["submit", "cancel"]);
 
 const DEFAULTS = {
   phone: "",
@@ -53,7 +53,17 @@ function startingValues() {
 
 const form = reactive(startingValues());
 
+const showErrors = ref(false);
+
 const isTutor = computed(() => props.role === "tutor");
+
+const PHONE_PATTERN = /^\+?[0-9 ]{8,15}$/;
+const RATE_MIN = 10;
+const RATE_MAX = 300;
+
+function isWholeNumber(value, min, max) {
+  return Number.isInteger(value) && value >= min && value <= max;
+}
 
 const choiceGroups = computed(() =>
   isTutor.value
@@ -71,24 +81,103 @@ const choiceGroups = computed(() =>
         { key: "teachingStyles", label: "Preferred Teaching Style", options: TEACHING_STYLES, required: false },
       ],
 );
+
+const errors = computed(() => {
+  const found = {};
+  if (form.phone && !PHONE_PATTERN.test(form.phone)) {
+    found.phone = "Enter a valid phone number, e.g. 9123 4567.";
+  }
+  if (!form.location) found.location = "Select your region.";
+
+  if (isTutor.value) {
+    if (!isWholeNumber(form.hourlyRate, RATE_MIN, RATE_MAX)) {
+      found.hourlyRate = `Enter a whole number from ${RATE_MIN} to ${RATE_MAX}.`;
+    }
+    if (!isWholeNumber(form.experienceYears, 0, 60)) {
+      found.experienceYears = "Enter a whole number of years from 0 to 60.";
+    }
+    if (!form.qualification) found.qualification = "Enter your academic background.";
+  } else {
+    if (!form.level) found.level = "Select an academic level.";
+    if (
+      !isWholeNumber(form.budgetMin, BUDGET_MIN, BUDGET_MAX) ||
+      !isWholeNumber(form.budgetMax, BUDGET_MIN, BUDGET_MAX)
+    ) {
+      found.budget = `Enter amounts from ${BUDGET_MIN} to ${BUDGET_MAX}.`;
+    } else if (form.budgetMin > form.budgetMax) {
+      found.budget = "The minimum cannot be more than the maximum.";
+    }
+  }
+
+  for (const group of choiceGroups.value) {
+    if (group.required && form[group.key].length === 0) {
+      found[group.key] = "Select at least one option.";
+    }
+  }
+  return found;
+});
+
+function errorFor(key) {
+  return showErrors.value ? errors.value[key] : "";
+}
+
+function buildPayload() {
+  const shared = {
+    phone: form.phone,
+    location: form.location,
+    subjects: [...form.subjects],
+    lessonModes: [...form.lessonModes],
+    availability: [...form.availability],
+    teachingStyles: [...form.teachingStyles],
+  };
+  if (isTutor.value) {
+    return {
+      ...shared,
+      levels: [...form.levels],
+      hourlyRate: form.hourlyRate,
+      qualification: form.qualification,
+      experienceYears: form.experienceYears,
+      bio: form.bio,
+    };
+  }
+  return {
+    ...shared,
+    level: form.level,
+    budgetMin: form.budgetMin,
+    budgetMax: form.budgetMax,
+  };
+}
+
+async function handleSubmit() {
+  showErrors.value = true;
+  const firstError = Object.keys(errors.value)[0];
+  if (firstError) {
+    await nextTick();
+    document.getElementById(`field-${firstError}`)?.focus();
+    return;
+  }
+  emit("submit", buildPayload());
+}
 </script>
 
 <template>
-  <form class="profile-form" novalidate @submit.prevent>
+  <form class="profile-form" novalidate @submit.prevent="handleSubmit">
     <section class="form-section" aria-labelledby="contact-heading">
       <h2 id="contact-heading">Contact and Location</h2>
       <div class="field-grid">
         <label class="field">
           <span>Contact Number</span>
-          <input v-model.trim="form.phone" type="tel" inputmode="tel" placeholder="e.g. 9123 4567" />
-          <small>Only you can see this.</small>
+          <input id="field-phone" v-model.trim="form.phone" type="tel" inputmode="tel" placeholder="e.g. 9123 4567" :aria-invalid="Boolean(errorFor('phone'))" />
+          <small v-if="errorFor('phone')" class="field-error">{{ errorFor("phone") }}</small>
+          <small v-else>Only you can see this.</small>
         </label>
         <label class="field">
           <span>Location <em class="required" aria-hidden="true">*</em></span>
-          <select v-model="form.location" required>
+          <select id="field-location" v-model="form.location" required :aria-invalid="Boolean(errorFor('location'))">
             <option value="" disabled>Select a region</option>
             <option v-for="option in LOCATIONS" :key="option" :value="option">{{ option }}</option>
           </select>
+          <small v-if="errorFor('location')" class="field-error">{{ errorFor("location") }}</small>
         </label>
       </div>
     </section>
@@ -100,33 +189,38 @@ const choiceGroups = computed(() =>
         <template v-if="isTutor">
           <label class="field">
             <span>Hourly Rate (SGD) <em class="required" aria-hidden="true">*</em></span>
-            <input v-model.number="form.hourlyRate" type="number" min="1" step="1" placeholder="e.g. 45" required />
+            <input id="field-hourlyRate" v-model.number="form.hourlyRate" type="number" :min="RATE_MIN" :max="RATE_MAX" step="1" placeholder="e.g. 45" required :aria-invalid="Boolean(errorFor('hourlyRate'))" />
+            <small v-if="errorFor('hourlyRate')" class="field-error">{{ errorFor("hourlyRate") }}</small>
           </label>
           <label class="field">
             <span>Teaching Experience (years) <em class="required" aria-hidden="true">*</em></span>
-            <input v-model.number="form.experienceYears" type="number" min="0" max="60" step="1" placeholder="e.g. 3" required />
+            <input id="field-experienceYears" v-model.number="form.experienceYears" type="number" min="0" max="60" step="1" placeholder="e.g. 3" required :aria-invalid="Boolean(errorFor('experienceYears'))" />
+            <small v-if="errorFor('experienceYears')" class="field-error">{{ errorFor("experienceYears") }}</small>
           </label>
           <label class="field wide">
             <span>Academic Background <em class="required" aria-hidden="true">*</em></span>
-            <input v-model.trim="form.qualification" type="text" maxlength="120" placeholder="e.g. BSc Mathematics, NUS" required />
+            <input id="field-qualification" v-model.trim="form.qualification" type="text" maxlength="120" placeholder="e.g. BSc Mathematics, NUS" required :aria-invalid="Boolean(errorFor('qualification'))" />
+            <small v-if="errorFor('qualification')" class="field-error">{{ errorFor("qualification") }}</small>
           </label>
         </template>
 
         <template v-else>
           <label class="field">
             <span>Academic Level <em class="required" aria-hidden="true">*</em></span>
-            <select v-model="form.level" required>
+            <select id="field-level" v-model="form.level" required :aria-invalid="Boolean(errorFor('level'))">
               <option value="" disabled>Select a level</option>
               <option v-for="option in LEVELS" :key="option" :value="option">{{ option }}</option>
             </select>
+            <small v-if="errorFor('level')" class="field-error">{{ errorFor("level") }}</small>
           </label>
           <fieldset class="field budget">
             <legend>Budget per hour (SGD) <em class="required" aria-hidden="true">*</em></legend>
             <div class="budget-inputs">
-              <input v-model.number="form.budgetMin" type="number" :min="BUDGET_MIN" :max="BUDGET_MAX" step="1" aria-label="Minimum budget" />
+              <input id="field-budget" v-model.number="form.budgetMin" type="number" :min="BUDGET_MIN" :max="BUDGET_MAX" step="1" aria-label="Minimum budget" :aria-invalid="Boolean(errorFor('budget'))" />
               <span>to</span>
-              <input v-model.number="form.budgetMax" type="number" :min="BUDGET_MIN" :max="BUDGET_MAX" step="1" aria-label="Maximum budget" />
+              <input v-model.number="form.budgetMax" type="number" :min="BUDGET_MIN" :max="BUDGET_MAX" step="1" aria-label="Maximum budget" :aria-invalid="Boolean(errorFor('budget'))" />
             </div>
+            <small v-if="errorFor('budget')" class="field-error">{{ errorFor("budget") }}</small>
           </fieldset>
         </template>
       </div>
@@ -138,11 +232,12 @@ const choiceGroups = computed(() =>
           <span v-else class="optional">(optional)</span>
         </legend>
         <div class="chips">
-          <label v-for="option in group.options" :key="option" class="chip" :class="{ selected: form[group.key].includes(option) }">
-            <input v-model="form[group.key]" type="checkbox" :value="option" />
+          <label v-for="(option, index) in group.options" :key="option" class="chip" :class="{ selected: form[group.key].includes(option) }">
+            <input :id="index === 0 ? `field-${group.key}` : undefined" v-model="form[group.key]" type="checkbox" :value="option" />
             {{ option }}
           </label>
         </div>
+        <small v-if="errorFor(group.key)" class="field-error">{{ errorFor(group.key) }}</small>
       </fieldset>
 
       <label v-if="isTutor" class="field wide">
@@ -156,7 +251,7 @@ const choiceGroups = computed(() =>
       <p class="footnote"><em class="required" aria-hidden="true">*</em> Required</p>
       <div class="actions">
         <button v-if="showCancel" type="button" class="secondary-button" :disabled="isSaving" @click="$emit('cancel')">Cancel</button>
-        <button type="submit" class="primary-button" disabled>{{ submitLabel }}</button>
+        <button type="submit" class="primary-button" :disabled="isSaving">{{ isSaving ? "Saving..." : submitLabel }}</button>
       </div>
     </div>
   </form>
@@ -184,6 +279,9 @@ h2 { margin: 0 0 16px; font-size: 18px; letter-spacing: -.3px; }
 .chip input { position: absolute; opacity: 0; pointer-events: none; }
 .chip.selected { border-color: #39ae86; background: #e6f7f0; color: #006c50; font-weight: 600; }
 .chip:focus-within { outline: 3px solid rgba(0, 133, 99, .35); outline-offset: 2px; }
+.field-error, .field small.field-error { display: block; color: #b42318; font-size: 12px; font-weight: 600; }
+.choice-group .field-error { margin-top: 8px; }
+.field [aria-invalid="true"] { border-color: #d92d20; }
 .required { color: #c4320a; font-style: normal; }
 .optional { color: #8a90a8; font-size: 12px; font-weight: 400; }
 .form-footer { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding-top: 22px; border-top: 1px solid #e7eaf3; }
