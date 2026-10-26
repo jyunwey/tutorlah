@@ -26,6 +26,19 @@ service cloud.firestore {
 
     // Private account details, including contact details.
     match /users/{uid} {
+      function hasValidProfileFields() {
+        let data = request.resource.data;
+        return (!("phone" in data) || (data.phone is string && data.phone.size() <= 20))
+          && (!("location" in data) || data.location is string)
+          && (!("level" in data) || data.level is string)
+          && (!("subjects" in data) || data.subjects is list)
+          && (!("lessonModes" in data) || data.lessonModes is list)
+          && (!("availability" in data) || data.availability is list)
+          && (!("teachingStyles" in data) || data.teachingStyles is list)
+          && (!("budgetMin" in data) || data.budgetMin is number)
+          && (!("budgetMax" in data) || data.budgetMax is number);
+      }
+
       allow create: if isDocumentOwner(uid)
         && request.resource.data.role
           in ["student", "tutor"]
@@ -84,8 +97,19 @@ service cloud.firestore {
             "firstName",
             "lastName",
             "onboardingComplete",
+            "phone",
+            "location",
+            "level",
+            "subjects",
+            "lessonModes",
+            "availability",
+            "teachingStyles",
+            "budgetMin",
+            "budgetMax",
             "updatedAt"
           ])
+
+        && hasValidProfileFields()
 
         && request.resource.data.updatedAt
           == request.time;
@@ -122,6 +146,9 @@ service cloud.firestore {
             "teachingStyles",
             "rating",
             "bio",
+            "lessonModes",
+            "qualification",
+            "experienceYears",
             "createdAt",
             "updatedAt"
           ])
@@ -134,7 +161,15 @@ service cloud.firestore {
           && request.resource.data.hourlyRate is number
           && request.resource.data.availability is list
           && request.resource.data.teachingStyles is list
-          && request.resource.data.rating is number;
+          && request.resource.data.rating is number
+          && (!("bio" in request.resource.data)
+            || request.resource.data.bio is string)
+          && (!("lessonModes" in request.resource.data)
+            || request.resource.data.lessonModes is list)
+          && (!("qualification" in request.resource.data)
+            || request.resource.data.qualification is string)
+          && (!("experienceYears" in request.resource.data)
+            || request.resource.data.experienceYears is number);
       }
 
       allow read: if isSignedIn();
