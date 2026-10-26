@@ -28,7 +28,7 @@ const TUTOR_PROFILE_FIELDS = [
   "teachingStyles",
   "lessonModes",
   "qualification",
-  "experienceYears",
+  "yearsOfExperience",
   "bio",
 ];
 
@@ -55,7 +55,6 @@ export async function createProfile(uid, account, values) {
     ...pick(values, TUTOR_PROFILE_FIELDS),
     firstName: account.firstName,
     lastName: account.lastName,
-    rating: 0,
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
   });

@@ -35,7 +35,7 @@ const DEFAULTS = {
   budgetMax: BUDGET_MAX,
   hourlyRate: null,
   qualification: "",
-  experienceYears: null,
+  yearsOfExperience: null,
   bio: "",
 };
 
@@ -66,20 +66,28 @@ function isWholeNumber(value, min, max) {
   return Number.isInteger(value) && value >= min && value <= max;
 }
 
+function toOptions(list) {
+  return list.map((item) =>
+    typeof item === "string" ? { value: item, label: item } : item,
+  );
+}
+
+const LEVEL_OPTIONS = toOptions(LEVELS);
+
 const choiceGroups = computed(() =>
   isTutor.value
     ? [
-        { key: "subjects", label: "Subjects I Teach", options: SUBJECTS, required: true },
-        { key: "levels", label: "Levels I Teach", options: LEVELS, required: true },
-        { key: "lessonModes", label: "Teaching Mode", options: LESSON_MODES, required: true },
-        { key: "availability", label: "Availability", options: AVAILABILITY, required: true },
-        { key: "teachingStyles", label: "Teaching Style", options: TEACHING_STYLES, required: true },
+        { key: "subjects", label: "Subjects I Teach", options: toOptions(SUBJECTS), required: true },
+        { key: "levels", label: "Levels I Teach", options: LEVEL_OPTIONS, required: true },
+        { key: "lessonModes", label: "Teaching Mode", options: toOptions(LESSON_MODES), required: true },
+        { key: "availability", label: "Availability", options: toOptions(AVAILABILITY), required: true },
+        { key: "teachingStyles", label: "Teaching Style", options: toOptions(TEACHING_STYLES), required: true },
       ]
     : [
-        { key: "subjects", label: "Preferred Subjects", options: SUBJECTS, required: true },
-        { key: "lessonModes", label: "Preferred Learning Mode", options: LESSON_MODES, required: true },
-        { key: "availability", label: "Availability", options: AVAILABILITY, required: false },
-        { key: "teachingStyles", label: "Preferred Teaching Style", options: TEACHING_STYLES, required: false },
+        { key: "subjects", label: "Preferred Subjects", options: toOptions(SUBJECTS), required: true },
+        { key: "lessonModes", label: "Preferred Learning Mode", options: toOptions(LESSON_MODES), required: true },
+        { key: "availability", label: "Availability", options: toOptions(AVAILABILITY), required: false },
+        { key: "teachingStyles", label: "Preferred Teaching Style", options: toOptions(TEACHING_STYLES), required: false },
       ],
 );
 
@@ -94,8 +102,8 @@ const errors = computed(() => {
     if (!isWholeNumber(form.hourlyRate, RATE_MIN, RATE_MAX)) {
       found.hourlyRate = `Enter a whole number from ${RATE_MIN} to ${RATE_MAX}.`;
     }
-    if (!isWholeNumber(form.experienceYears, 0, 60)) {
-      found.experienceYears = "Enter a whole number of years from 0 to 60.";
+    if (!isWholeNumber(form.yearsOfExperience, 0, 60)) {
+      found.yearsOfExperience = "Enter a whole number of years from 0 to 60.";
     }
     if (!form.qualification) found.qualification = "Enter your academic background.";
   } else {
@@ -137,7 +145,7 @@ function buildPayload() {
       levels: [...form.levels],
       hourlyRate: form.hourlyRate,
       qualification: form.qualification,
-      experienceYears: form.experienceYears,
+      yearsOfExperience: form.yearsOfExperience,
       bio: form.bio,
     };
   }
@@ -195,12 +203,12 @@ async function handleSubmit() {
           </label>
           <label class="field">
             <span>Teaching Experience (years) <em class="required" aria-hidden="true">*</em></span>
-            <input id="field-experienceYears" v-model.number="form.experienceYears" type="number" min="0" max="60" step="1" placeholder="e.g. 3" required :aria-invalid="Boolean(errorFor('experienceYears'))" />
-            <small v-if="errorFor('experienceYears')" class="field-error">{{ errorFor("experienceYears") }}</small>
+            <input id="field-yearsOfExperience" v-model.number="form.yearsOfExperience" type="number" min="0" max="60" step="1" placeholder="e.g. 3" required :aria-invalid="Boolean(errorFor('yearsOfExperience'))" />
+            <small v-if="errorFor('yearsOfExperience')" class="field-error">{{ errorFor("yearsOfExperience") }}</small>
           </label>
           <label class="field wide">
             <span>Academic Background <em class="required" aria-hidden="true">*</em></span>
-            <input id="field-qualification" v-model.trim="form.qualification" type="text" maxlength="120" placeholder="e.g. BSc Mathematics, NUS" required :aria-invalid="Boolean(errorFor('qualification'))" />
+            <input id="field-qualification" v-model.trim="form.qualification" type="text" maxlength="60" placeholder="e.g. NUS Graduate, Ex-MOE Teacher" required :aria-invalid="Boolean(errorFor('qualification'))" />
             <small v-if="errorFor('qualification')" class="field-error">{{ errorFor("qualification") }}</small>
           </label>
         </template>
@@ -210,7 +218,7 @@ async function handleSubmit() {
             <span>Academic Level <em class="required" aria-hidden="true">*</em></span>
             <select id="field-level" v-model="form.level" required :aria-invalid="Boolean(errorFor('level'))">
               <option value="" disabled>Select a level</option>
-              <option v-for="option in LEVELS" :key="option" :value="option">{{ option }}</option>
+              <option v-for="option in LEVEL_OPTIONS" :key="option.value" :value="option.value">{{ option.label }}</option>
             </select>
             <small v-if="errorFor('level')" class="field-error">{{ errorFor("level") }}</small>
           </label>
@@ -233,9 +241,9 @@ async function handleSubmit() {
           <span v-else class="optional">(optional)</span>
         </legend>
         <div class="chips">
-          <label v-for="(option, index) in group.options" :key="option" class="chip" :class="{ selected: form[group.key].includes(option) }">
-            <input :id="index === 0 ? `field-${group.key}` : undefined" v-model="form[group.key]" type="checkbox" :value="option" />
-            {{ option }}
+          <label v-for="(option, index) in group.options" :key="option.value" class="chip" :class="{ selected: form[group.key].includes(option.value) }">
+            <input :id="index === 0 ? `field-${group.key}` : undefined" v-model="form[group.key]" type="checkbox" :value="option.value" />
+            {{ option.label }}
           </label>
         </div>
         <small v-if="errorFor(group.key)" class="field-error">{{ errorFor(group.key) }}</small>

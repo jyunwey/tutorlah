@@ -92,7 +92,7 @@ rules, because a new account has none of them until Create Profile is saved.
 | ---------------- | --------- | ------- | ----------------------------------------------------- |
 | `phone`          | string    | both    | Optional; contact detail, so private. Max 20 characters |
 | `location`       | string    | student | One value from `LOCATIONS`. Tutors keep theirs in `tutorProfiles` |
-| `level`          | string    | student | One value from `LEVELS`                               |
+| `level`          | string    | student | One `value` from `LEVELS`                             |
 | `subjects`       | string[]  | student | Values from `SUBJECTS`                                |
 | `lessonModes`    | string[]  | student | `"In-person"` and/or `"Online"` (`LESSON_MODES`)      |
 | `availability`   | string[]  | student | Values from `AVAILABILITY`; may be empty              |
