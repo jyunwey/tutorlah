@@ -83,12 +83,30 @@ Example:
 }
 ```
 
-### Proposed profile fields 📝
+### Profile fields 📝
 
-Filled in on the profile page (FR-025, FR-026).
+Filled in on Create Profile and changed on My Profile (FR-025, FR-026). All are optional in the
+rules, because a new account has none of them until Create Profile is saved.
 
-| Field         | Type       | Role    | Notes                                         |
-| ------------- | ---------- | ------- | --------------------------------------------- |
+| Field            | Type      | Role    | Notes                                                 |
+| ---------------- | --------- | ------- | ----------------------------------------------------- |
+| `phone`          | string    | both    | Optional; contact detail, so private. Max 20 characters |
+| `location`       | string    | student | One value from `LOCATIONS`. Tutors keep theirs in `tutorProfiles` |
+| `level`          | string    | student | One `value` from `LEVELS`                             |
+| `subjects`       | string[]  | student | Values from `SUBJECTS`                                |
+| `lessonModes`    | string[]  | student | `"In-person"` and/or `"Online"` (`LESSON_MODES`)      |
+| `availability`   | string[]  | student | Values from `AVAILABILITY`; may be empty              |
+| `teachingStyles` | string[]  | student | Values from `TEACHING_STYLES`; may be empty           |
+| `budgetMin`      | number    | student | SGD per hour, 20 to 100                               |
+| `budgetMax`      | number    | student | SGD per hour, 20 to 100, not below `budgetMin`        |
+
+Tutors' teaching details go in `tutorProfiles`, not here. Create Profile writes the profile
+fields and sets `onboardingComplete` to `true` in the same batch.
+
+After sign-up, the `users` rules let the owner change the names, `onboardingComplete`,
+`updatedAt` and the fields above. `role`, `email` and `createdAt` still cannot change.
+
+------------- | ---------- | ------- | --------------------------------------------- |
 | `phone`       | string     | both    | Optional; contact detail, so private          |
 | `level`       | string     | student | e.g. `"Secondary"`                            |
 
@@ -123,6 +141,7 @@ created by [scripts/seedTutors.js](../scripts/seedTutors.js) as real tutor accou
 | `bio`            | string    | no       | Shown in the About tab of the Tutor Profile (FR-013)     |
 | `qualification`  | string    | no       | Short, e.g. `"Ex-MOE Teacher"`, `"NUS Graduate"` (FR-008) |
 | `yearsOfExperience` | number | no       | Shown as "6 years experience" on the tutor card (FR-008) |
+| `lessonModes`    | string[]  | no       | `"In-person"` and/or `"Online"`, from Create Profile (FR-026) |
 | `createdAt`      | timestamp | yes      | `serverTimestamp()`                                      |
 | `updatedAt`      | timestamp | yes      | `serverTimestamp()`                                      |
 
@@ -202,7 +221,7 @@ or rejects it. Only the two users in the match can read or write it (Sprint 2).
 The rules are in [firestore.rules](../firestore.rules). Summary:
 
 - `users`: only the owner can read or write; only the listed fields are allowed; `role`,
-  `email` and `createdAt` cannot change after sign-up.
+  `email` and `createdAt` cannot change after sign-up; profile fields are type-checked.
 - `tutorProfiles`: any signed-in user can read; only a tutor can create or edit their own;
   only the listed fields are allowed.
 - `assignments`: any signed-in user can read; only a student can create one, with
