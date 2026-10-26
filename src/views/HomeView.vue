@@ -1,5 +1,5 @@
 <script setup>
-import { computed } from "vue";
+import { computed, watch } from "vue";
 import { RouterLink, useRouter } from "vue-router";
 
 import AppNavBar from "../components/AppNavBar.vue";
@@ -9,6 +9,17 @@ const router = useRouter();
 const { user, account, isLoading, errorMessage } = useCurrentAccount();
 
 const isTutor = computed(() => account.value?.role === "tutor");
+const needsProfile = computed(
+  () => Boolean(account.value) && !account.value.onboardingComplete,
+);
+
+watch(
+  needsProfile,
+  (needed) => {
+    if (needed) router.replace("/create-profile");
+  },
+  { immediate: true },
+);
 
 const greeting = computed(() => {
   const hour = new Date().getHours();
@@ -83,6 +94,10 @@ const canSeeAll = computed(() =>
 
       <p v-else-if="errorMessage" class="state-message error" role="alert">
         {{ errorMessage }}
+      </p>
+
+      <p v-else-if="needsProfile" class="state-message" role="status">
+        Taking you to profile setup...
       </p>
 
       <main v-else-if="account" class="home-content">
