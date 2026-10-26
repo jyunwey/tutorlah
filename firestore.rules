@@ -24,6 +24,12 @@ service cloud.firestore {
       ).data.role;
     }
 
+    // Demo tutors created by scripts/seedTutors.js.
+    function isSeededDemoAccount() {
+      return request.auth.token.email
+        .matches(".*@tutorlah[.]test$");
+    }
+
     // Private account details, including contact details.
     match /users/{uid} {
       function hasValidProfileFields() {
@@ -130,7 +136,6 @@ service cloud.firestore {
             "hourlyRate",
             "availability",
             "teachingStyles",
-            "rating",
             "createdAt",
             "updatedAt"
           ])
@@ -146,9 +151,9 @@ service cloud.firestore {
             "teachingStyles",
             "rating",
             "bio",
-            "lessonModes",
             "qualification",
-            "experienceYears",
+            "yearsOfExperience",
+            "lessonModes",
             "createdAt",
             "updatedAt"
           ])
@@ -161,15 +166,24 @@ service cloud.firestore {
           && request.resource.data.hourlyRate is number
           && request.resource.data.availability is list
           && request.resource.data.teachingStyles is list
-          && request.resource.data.rating is number
-          && (!("bio" in request.resource.data)
-            || request.resource.data.bio is string)
-          && (!("lessonModes" in request.resource.data)
-            || request.resource.data.lessonModes is list)
-          && (!("qualification" in request.resource.data)
-            || request.resource.data.qualification is string)
-          && (!("experienceYears" in request.resource.data)
-            || request.resource.data.experienceYears is number);
+
+          // Optional fields: checked only if present.
+          && request.resource.data.get("rating", 0)
+            is number
+          && request.resource.data.get("qualification", "")
+            is string
+          && request.resource.data.get("yearsOfExperience", 0)
+            is number
+          && request.resource.data.get("bio", "")
+            is string
+          && request.resource.data.get("lessonModes", [])
+            is list
+
+          // Ratings are seeded demo values (Refined FR-008), so only the
+          // seeded @tutorlah.test accounts may have one. Real tutors can't
+          // give themselves a rating; the app shows them as "New tutor".
+          && (!("rating" in request.resource.data)
+            || isSeededDemoAccount());
       }
 
       allow read: if isSignedIn();
@@ -199,19 +213,95 @@ service cloud.firestore {
     // Post Assignment (FR-018, FR-019) and Find Assignments (FR-014, FR-015).
     // TODO: add field checks once the Post Assignment fields are final.
     match /assignments/{assignmentId} {
+      function hasValidAssignmentFields() {
+        return request.resource.data.keys().hasAll([
+            "studentId",
+            "subject",
+            "level",
+            "location",
+            "learningMode",
+            "minimumRate",
+            "maximumRate",
+            "preferredDay",
+            "preferredTimeSlot",
+            "teachingStyle",
+            "additionalDetails",
+            "status",
+            "createdAt",
+            "updatedAt"
+          ])
+
+          && request.resource.data.keys().hasOnly([
+            "studentId",
+            "subject",
+            "level",
+            "location",
+            "learningMode",
+            "minimumRate",
+            "maximumRate",
+            "preferredDay",
+            "preferredTimeSlot",
+            "teachingStyle",
+            "additionalDetails",
+            "status",
+            "createdAt",
+            "updatedAt"
+          ])
+
+          && request.resource.data.studentId is string
+          && request.resource.data.subject is string
+          && request.resource.data.level is string
+          && request.resource.data.location is string
+          && request.resource.data.learningMode
+            in ["In-person", "Online", "Either"]
+
+          && request.resource.data.minimumRate is number
+          && request.resource.data.minimumRate > 0
+
+          && request.resource.data.maximumRate is number
+          && request.resource.data.maximumRate
+            >= request.resource.data.minimumRate
+
+          && request.resource.data.preferredDay is string
+          && request.resource.data.preferredTimeSlot is string
+          && request.resource.data.teachingStyle is string
+          && request.resource.data.additionalDetails is string
+
+          && request.resource.data.status
+            in ["open", "matched", "closed"];
+      }
+
       allow read: if isSignedIn();
 
       allow create: if isSignedIn()
         && currentUserRole() == "student"
+
         && request.resource.data.studentId
-          == request.auth.uid;
+          == request.auth.uid
+
+        && request.resource.data.status == "open"
+        && hasValidAssignmentFields()
+
+        && request.resource.data.createdAt
+          == request.time
+
+        && request.resource.data.updatedAt
+          == request.time;
 
       allow update: if isSignedIn()
         && resource.data.studentId
           == request.auth.uid
 
         && request.resource.data.studentId
-          == resource.data.studentId;
+          == resource.data.studentId
+
+        && request.resource.data.createdAt
+          == resource.data.createdAt
+
+        && hasValidAssignmentFields()
+
+        && request.resource.data.updatedAt
+          == request.time;
 
       allow delete: if isSignedIn()
         && resource.data.studentId

@@ -1,11 +1,10 @@
 <script setup>
 import { computed, onMounted, onUnmounted, ref } from "vue";
-import { RouterLink, useRouter } from "vue-router";
 import { doc, getDoc } from "firebase/firestore";
 import { db } from "../firebase.js";
 import { observeCurrentUser } from "../services/auth.js";
+import AppNavBar from "../components/AppNavBar.vue";
 
-const router = useRouter();
 const profile = ref(null);
 const tutorProfile = ref(null);
 const isLoading = ref(true);
@@ -25,18 +24,6 @@ const roleLabel = computed(() => {
   if (isTutor.value) return "Tutor";
   if (profile.value?.role === "student") return "Student / Parent";
   return "Unknown role";
-});
-
-// Show only role-appropriate pages that already have a real route.
-// Replace this local header with the team's shared navbar when available.
-const navigation = computed(() => {
-  if (!profile.value) return [];
-  const items = isTutor.value
-    ? [["Home", "/home"], ["Find Assignments", "/find-assignments"], ["My Matches", "/my-matches"]]
-    : [["Home", "/home"], ["Find Tutors", "/find-tutors"], ["Post Assignment", "/post-assignment"], ["My Matches", "/my-matches"]];
-  return items.filter(([, path]) =>
-    router.getRoutes().some((route) => route.path === path),
-  );
 });
 
 function display(value) {
@@ -130,27 +117,7 @@ onUnmounted(() => {
 <template>
   <div class="profile-page">
     <div class="page-shell">
-      <header class="site-header">
-        <div class="brand" aria-label="TutorLah">
-          <svg viewBox="0 0 40 36" aria-hidden="true">
-            <path d="M2 12 20 3l18 9-18 9L2 12Z" fill="currentColor" />
-            <path d="M9 18v9l11 6 11-6v-9l-11 6-11-6Z" fill="currentColor" />
-            <path d="M4 15v11" stroke="currentColor" stroke-width="3" stroke-linecap="round" />
-            <circle cx="20" cy="11" r="2" fill="white" />
-          </svg>
-          <span>Tutor<span class="brand-green">Lah</span></span>
-        </div>
-
-        <nav v-if="profile" class="navigation" aria-label="Main navigation">
-          <RouterLink v-for="[label, path] in navigation" :key="path" :to="path">
-            {{ label }}
-          </RouterLink>
-        </nav>
-
-        <RouterLink v-if="profile" to="/profile" class="nav-avatar" aria-label="My profile" aria-current="page">
-          {{ initials }}
-        </RouterLink>
-      </header>
+      <AppNavBar :account="profile" />
 
       <main class="profile-card" aria-labelledby="profile-title">
         <h1 id="profile-title">My Profile</h1>
@@ -200,23 +167,6 @@ onUnmounted(() => {
 }
 .profile-page *, .profile-page *::before, .profile-page *::after { box-sizing: border-box; }
 .page-shell { max-width: 1120px; margin: 0 auto; }
-.site-header {
-  display: flex;
-  align-items: center;
-  gap: 32px;
-  min-height: 72px;
-  padding: 14px 24px;
-  background: #fff;
-  border: 1px solid #dceee8;
-  border-radius: 9px;
-}
-.brand { display: flex; align-items: center; gap: 8px; color: #101820; font-size: 25px; font-weight: 700; letter-spacing: -1px; }
-.brand svg { width: 36px; height: 34px; color: #008563; }
-.brand-green { color: #008563; }
-.navigation { display: flex; flex: 1; flex-wrap: wrap; gap: 24px; }
-.navigation a { color: #414b73; text-decoration: none; font-size: 13px; padding: 8px 0; }
-.navigation a:hover { color: #008563; text-decoration: underline; }
-.nav-avatar { display: grid; place-items: center; margin-left: auto; flex-shrink: 0; width: 38px; height: 38px; border-radius: 50%; background: #def5eb; color: #006c50; font-size: 13px; font-weight: 700; text-decoration: none; }
 .profile-card { margin: 20px 16px 0; min-height: 650px; padding: 28px 24px 48px; background: rgba(255,255,255,.88); border: 1px solid #e1efeb; border-radius: 9px; }
 h1 { margin: 0; font-size: 32px; line-height: 1.2; letter-spacing: -.9px; }
 .subtitle { margin: 6px 0 26px; color: #616999; font-size: 15px; }
@@ -239,8 +189,6 @@ dd { margin: 0; color: #626a9b; overflow-wrap: anywhere; white-space: pre-line; 
 a:focus-visible { outline: 3px solid #008563; outline-offset: 4px; }
 @media (max-width: 700px) {
   .profile-page { padding: 12px; }
-  .site-header { gap: 16px; padding: 12px 16px; flex-wrap: wrap; }
-  .navigation { order: 3; flex-basis: 100%; gap: 18px; }
   .profile-card { margin: 12px 0 0; padding: 24px 18px; min-height: 0; }
   .profile-summary { margin: 0 0 24px; gap: 16px; flex-wrap: wrap; }
   .avatar { width: 76px; height: 76px; font-size: 28px; }

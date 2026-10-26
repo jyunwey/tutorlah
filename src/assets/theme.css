@@ -1,0 +1,25 @@
+/* Shared colours and fonts from the midterm prototype.
+   This file only defines variables, so it doesn't change any page by itself.
+   Use them in a component's styles, e.g. color: var(--color-primary); */
+:root {
+  --color-primary: #0f6b4f;
+  --color-primary-dark: #0b5039;
+  --color-primary-light: #e7f4ee;
+  --color-text: #1f2a30;
+  --color-text-muted: #5b6770;
+  --color-border: #e3e7eb;
+  --color-bg: #f5f7f8;
+  --color-surface: #ffffff;
+  --color-surface-muted: #f3f5f6;
+  --color-ring-track: #e4ebe8;
+  --color-star: #f5a524;
+  --color-error: #c0392b;
+
+  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+    "Helvetica Neue", Arial, sans-serif;
+
+  --radius-card: 14px;
+  --radius-control: 10px;
+  --shadow-card: 0 1px 3px rgba(16, 24, 40, 0.06);
+  --shadow-card-hover: 0 6px 16px rgba(16, 24, 40, 0.1);
+}

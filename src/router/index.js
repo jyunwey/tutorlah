@@ -2,8 +2,15 @@ import RegisterView from
   "../views/RegisterView.vue";
 import FindTutorsView from
   "../views/FindTutorsView.vue";
-import ProfileView from 
+import HomeView from
+  "../views/HomeView.vue";
+import PostAssignmentView from
+  "../views/PostAssignmentView.vue";
+import ProfileView from
   "../views/ProfileView.vue";
+//import TutorSetupView from "../views/TutorSetupView.vue";
+import TutorProfileView from
+  "../views/TutorProfileView.vue";
 import CreateProfileView from
   "../views/CreateProfileView.vue";
 
@@ -25,9 +32,24 @@ const router = createRouter({
       component: RegisterView,
     },
     {
+      path: "/home",
+      name: "home",
+      component: HomeView,
+    },
+    {
+    path: "/post-assignment",
+    name: "post-assignment",
+    component: PostAssignmentView,
+    },
+    {
       path: "/find-tutors",
       name: "find-tutors",
       component: FindTutorsView,
+    },
+    {
+      path: "/tutors/:id",
+      name: "tutor-profile",
+      component: TutorProfileView,
     },
     {
       path: "/create-profile",
@@ -35,14 +57,14 @@ const router = createRouter({
       component: CreateProfileView,
     },
     {
-      path: "/:pathMatch(.*)*",
-      redirect: "/register",
-    },
-    {
       path: "/profile",
       name: "profile",
       component: ProfileView,
-    }
+    },
+    {
+      path: "/:pathMatch(.*)*",
+      redirect: "/register",
+    },
   ],
 })
 
