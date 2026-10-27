@@ -3,11 +3,20 @@ import { ref } from "vue";
 import AuthLayout from "../components/AuthLayout.vue";
 import { loginUser } from "../services/auth.js";
 import { useRouter, RouterLink } from "vue-router";
+import { Eye, EyeOff } from "lucide-vue-next";
+import {
+  setPersistence,
+  browserLocalPersistence,
+  browserSessionPersistence
+} from "firebase/auth";
+import { auth } from "../firebase.js";
 
 const router = useRouter();
 
 const email = ref("");
 const password = ref("");
+const showPassword = ref(false);
+const rememberMe = ref(false);
 
 const errorMessage = ref("");
 const isSubmitting = ref(false);
@@ -15,13 +24,20 @@ const isSubmitting = ref(false);
 async function handleLogin() {
   errorMessage.value = "";
   isSubmitting.value = true;
-
+  
+  // retain auth session for current browser session
   try {
+    await setPersistence(
+      auth,
+      rememberMe.value
+        ? browserLocalPersistence
+        : browserSessionPersistence
+    );
+
     const user = await loginUser(
       email.value,
       password.value
     );
-
     console.log("Login successful:", user.uid);
 
     await router.replace("/home");
@@ -132,14 +148,37 @@ async function handleLogin() {
 
       <div class="form-field">
         <label for="password">Password</label>
-        <input
-          id="password"
-          v-model="password"
-          type="password"
-          placeholder="Enter your password"
-          autocomplete="current-password"
-          required
-        />
+        <div class="password-wrapper">
+          <input
+            id="password"
+            v-model="password"
+            :type="showPassword ? 'text' : 'password'"
+            placeholder="Enter your password"
+            autocomplete="current-password"
+            required
+          />
+
+          <button
+            type="button"
+            class="password-toggle"
+            :aria-label="showPassword ? 'Hide password' : 'Show password'"
+            :aria-pressed="showPassword"
+            @click="showPassword = !showPassword"
+          >
+            <EyeOff v-if="showPassword" :size="20" />
+            <Eye v-else :size="20" />
+          </button>
+        </div>
+      </div>
+
+      <div class="remember-me">
+        <label>
+          <input
+            type="checkbox"
+            v-model="rememberMe"
+          />
+          <span>Remember me</span>
+        </label>
       </div>
 
       <button type="submit" 
@@ -230,5 +269,52 @@ h1 {
 .login-btn:disabled {
   opacity: 0.6;
   cursor: not-allowed;
+}
+
+.password-wrapper {
+  position: relative;
+}
+
+.password-wrapper input {
+  width: 100%;
+  padding-right: 48px;
+}
+
+.password-toggle {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  padding: 4px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  color: #52658a;
+}
+
+.password-toggle:hover {
+  color: #00875a;
+}
+
+.remember-me label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  font-size: 13px;
+  color: #52658a;
+}
+
+.remember-me input {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  accent-color: #00875a;
+  cursor: pointer;
 }
 </style>

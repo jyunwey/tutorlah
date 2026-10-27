@@ -1,12 +1,13 @@
 <script setup>
 import AuthLayout from "../components/AuthLayout.vue";
 import { ref, computed } from "vue";
-import { RouterLink } from "vue-router";
+import { useRouter, RouterLink } from "vue-router";
 
 import {
   registerUser,
 } from "../services/auth.js";
 
+const router = useRouter();
 
 const firstName = ref("");
 const lastName = ref("");
@@ -24,7 +25,9 @@ const isEmailValid = computed(() => {
 
 const isPasswordValid = computed(() => {
   return (
-    password.value.length >= 8
+    password.value.length >= 8 &&
+    /[A-Z]/.test(password.value) &&
+    /[^A-Za-z0-9]/.test(password.value)
   );
 });
 
@@ -64,6 +67,11 @@ async function handleRegistration() {
       "Please check your email to verify your account before logging in.";
 
     messageType.value = "success";
+
+    // Redirect to Login after 4 seconds
+    setTimeout(() => {
+      router.replace("/login");
+    }, 4000);
 
   } catch (error) {
     console.error(
@@ -247,7 +255,7 @@ async function handleRegistration() {
           v-if="password && !isPasswordValid"
           class="validation-error"
         >
-          Password must have at least 8 characters.
+          Password must have at least 8 characters, 1 uppercase letter and 1 special character.
         </small>
       </div>
 
