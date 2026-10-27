@@ -1,4 +1,5 @@
 <script setup>
+import AppNavBar from "../components/AppNavBar.vue";
 import {
   computed,
   onMounted,
@@ -134,8 +135,10 @@ onMounted(async () => {
 </script>
 
 <template>
-  <!-- TODO (FR-005): navigation bar goes here once it is built. -->
   <main class="find-tutors-page">
+    <div class="page-nav">
+      <AppNavBar />
+    </div>
     <header class="page-header">
       <h1>Find Tutors</h1>
       <p>Browse tutors based on your needs.</p>
@@ -212,6 +215,10 @@ onMounted(async () => {
 </template>
 
 <style scoped>
+.page-nav {
+  margin-bottom: 28px;
+}
+
 .find-tutors-page {
   min-height: 100vh;
   padding: 40px 20px;

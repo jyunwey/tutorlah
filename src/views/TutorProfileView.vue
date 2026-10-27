@@ -1,4 +1,5 @@
 <script setup>
+import AppNavBar from "../components/AppNavBar.vue";
 import {
   computed,
   onMounted,
@@ -81,8 +82,10 @@ onMounted(async () => {
 </script>
 
 <template>
-  <!-- TODO (FR-005): navigation bar goes here once it is built. -->
   <main class="tutor-profile-page">
+    <div class="page-nav">
+      <AppNavBar />
+    </div>
     <div class="container">
       <RouterLink :to="resultsPath" class="back-link">
         <span aria-hidden="true">←</span> Back to Results
@@ -181,6 +184,10 @@ onMounted(async () => {
 </template>
 
 <style scoped>
+.page-nav {
+  margin-bottom: 24px;
+}
+
 .tutor-profile-page {
   min-height: 100vh;
   padding: 32px 20px;
