@@ -25,12 +25,14 @@ const STUDENT_LINKS = [
   { label: "Find Tutors", path: "/find-tutors" },
   { label: "Post Assignment", path: "/post-assignment" },
   { label: "My Matches", path: "/my-matches" },
+  { label: "Saved", path: "/saved" },
 ];
 
 const TUTOR_LINKS = [
   { label: "Home", path: "/home" },
   { label: "Find Assignments", path: "/find-assignments" },
   { label: "My Matches", path: "/my-matches" },
+  { label: "Saved", path: "/saved" },
 ];
 
 const links = computed(() => {
