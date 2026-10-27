@@ -23,7 +23,7 @@ const password = ref("");
 
       <div class="feature">
         <img
-          src="/signup/icon-community.png"
+          src="/login/icon-find-tutors.png"
           alt=""
           class="feature-icon"
         />
@@ -35,7 +35,7 @@ const password = ref("");
 
       <div class="feature">
         <img
-          src="/signup/icon-match.png"
+          src="/login/icon-assignments.png"
           alt=""
           class="feature-icon"
         />
@@ -47,7 +47,7 @@ const password = ref("");
 
       <div class="feature">
         <img
-          src="/signup/icon-goals.png"
+          src="/login/icon-sprout.png"
           alt=""
           class="feature-icon"
         />
