@@ -32,6 +32,19 @@ service cloud.firestore {
 
     // Private account details, including contact details.
     match /users/{uid} {
+      function hasValidProfileFields() {
+        let data = request.resource.data;
+        return (!("phone" in data) || (data.phone is string && data.phone.size() <= 20))
+          && (!("location" in data) || data.location is string)
+          && (!("level" in data) || data.level is string)
+          && (!("subjects" in data) || data.subjects is list)
+          && (!("lessonModes" in data) || data.lessonModes is list)
+          && (!("availability" in data) || data.availability is list)
+          && (!("teachingStyles" in data) || data.teachingStyles is list)
+          && (!("budgetMin" in data) || data.budgetMin is number)
+          && (!("budgetMax" in data) || data.budgetMax is number);
+      }
+
       allow create: if isDocumentOwner(uid)
         && request.resource.data.role
           in ["student", "tutor"]
@@ -90,8 +103,19 @@ service cloud.firestore {
             "firstName",
             "lastName",
             "onboardingComplete",
+            "phone",
+            "location",
+            "level",
+            "subjects",
+            "lessonModes",
+            "availability",
+            "teachingStyles",
+            "budgetMin",
+            "budgetMax",
             "updatedAt"
           ])
+
+        && hasValidProfileFields()
 
         && request.resource.data.updatedAt
           == request.time;
@@ -129,6 +153,7 @@ service cloud.firestore {
             "bio",
             "qualification",
             "yearsOfExperience",
+            "lessonModes",
             "createdAt",
             "updatedAt"
           ])
@@ -149,6 +174,10 @@ service cloud.firestore {
             is string
           && request.resource.data.get("yearsOfExperience", 0)
             is number
+          && request.resource.data.get("bio", "")
+            is string
+          && request.resource.data.get("lessonModes", [])
+            is list
 
           // Ratings are seeded demo values (Refined FR-008), so only the
           // seeded @tutorlah.test accounts may have one. Real tutors can't

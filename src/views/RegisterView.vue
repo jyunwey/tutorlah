@@ -6,9 +6,9 @@ import {
   registerUser,
 } from "../services/auth.js";
 
-//import { useRouter } from "vue-router";
+import { useRouter } from "vue-router";
 
-//const router = useRouter();
+const router = useRouter();
 
 const firstName = ref("");
 const lastName = ref("");
@@ -67,9 +67,7 @@ async function handleRegistration() {
 
     messageType.value = "success";
 
-    /*
     await router.push("/create-profile");
-    */
   } catch (error) {
     console.error(
       "Registration failed:",
