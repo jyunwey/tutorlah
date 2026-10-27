@@ -1,24 +1,196 @@
 <script setup>
 import {
+  computed,
   onMounted,
   ref,
 } from 'vue'
 
 import AssignmentCard from '../components/AssignmentCard.vue'
+import AssignmentFilters from '../components/AssignmentFilters.vue'
+import {
+  createEmptyAssignmentFilters,
+} from '../constants/assignmentFilters.js'
 import {
   fetchAssignments,
 } from '../services/assignments.js'
 
 const assignments = ref([])
+const filters = ref(
+  createEmptyAssignmentFilters()
+)
+
 const isLoading = ref(true)
 const errorMessage = ref('')
+
+const activeFilterCount = computed(() => {
+  const {
+    subject,
+    level,
+    location,
+    learningModes,
+    minimumBudget,
+    preferredDay,
+    preferredTimeSlot,
+    postedWithinDays,
+  } = filters.value
+
+  return (
+    [
+      subject,
+      level,
+      location,
+      preferredDay,
+      preferredTimeSlot,
+      postedWithinDays,
+    ].filter(Boolean).length
+    + learningModes.length
+    + (
+      minimumBudget === null
+        ? 0
+        : 1
+    )
+  )
+})
+
+const filteredAssignments = computed(() =>
+  assignments.value.filter(
+    (assignment) =>
+      matchesFilters(
+        assignment,
+        filters.value
+      )
+  )
+)
+
+function getCreatedAtMilliseconds(timestamp) {
+  if (!timestamp) {
+    return null
+  }
+
+  if (typeof timestamp.toMillis === 'function') {
+    return timestamp.toMillis()
+  }
+
+  const milliseconds =
+    new Date(timestamp).getTime()
+
+  return Number.isNaN(milliseconds)
+    ? null
+    : milliseconds
+}
+
+function matchesFilters(
+  assignment,
+  activeFilters
+) {
+  const {
+    subject,
+    level,
+    location,
+    learningModes,
+    minimumBudget,
+    preferredDay,
+    preferredTimeSlot,
+    postedWithinDays,
+  } = activeFilters
+
+  if (
+    subject
+    && assignment.subject !== subject
+  ) {
+    return false
+  }
+
+  if (
+    level
+    && assignment.level !== level
+  ) {
+    return false
+  }
+
+  if (
+    location
+    && assignment.location !== location
+  ) {
+    return false
+  }
+
+  if (
+    learningModes.length > 0
+    && !learningModes.includes(
+      assignment.learningMode
+    )
+  ) {
+    return false
+  }
+
+  if (minimumBudget !== null) {
+    const maximumRate =
+      Number(assignment.maximumRate)
+
+    if (
+      !Number.isFinite(maximumRate)
+      || maximumRate < minimumBudget
+    ) {
+      return false
+    }
+  }
+
+  if (
+    preferredDay
+    && assignment.preferredDay
+      !== preferredDay
+  ) {
+    return false
+  }
+
+  if (
+    preferredTimeSlot
+    && assignment.preferredTimeSlot
+      !== preferredTimeSlot
+  ) {
+    return false
+  }
+
+  if (postedWithinDays) {
+    const createdAt =
+      getCreatedAtMilliseconds(
+        assignment.createdAt
+      )
+
+    const maximumAge =
+      Number(postedWithinDays)
+      * 24
+      * 60
+      * 60
+      * 1000
+
+    const earliestAllowedTime =
+      Date.now() - maximumAge
+
+    if (
+      createdAt === null
+      || createdAt < earliestAllowedTime
+    ) {
+      return false
+    }
+  }
+
+  return true
+}
+
+function clearFilters() {
+  filters.value =
+    createEmptyAssignmentFilters()
+}
 
 async function loadAssignments() {
   isLoading.value = true
   errorMessage.value = ''
 
   try {
-    assignments.value = await fetchAssignments()
+    assignments.value =
+      await fetchAssignments()
   } catch (error) {
     console.error(
       'Failed to load assignments:',
@@ -50,67 +222,102 @@ onMounted(loadAssignments)
       </p>
     </header>
 
-    <section class="results">
-      <p
-        v-if="isLoading"
-        class="page-message"
-      >
-        Loading assignments...
-      </p>
+    <div class="layout">
+      <AssignmentFilters
+        v-model="filters"
+      />
 
-      <div
-        v-else-if="errorMessage"
-        class="page-message error-message"
-      >
-        <p>
-          {{ errorMessage }}
-        </p>
-
-        <button
-          type="button"
-          @click="loadAssignments"
-        >
-          Try Again
-        </button>
-      </div>
-
-      <template v-else>
+      <section class="results">
         <p
-          class="result-count"
-          aria-live="polite"
-        >
-          {{ assignments.length }}
-          {{
-            assignments.length === 1
-              ? 'assignment'
-              : 'assignments'
-          }}
-          found
-        </p>
-
-        <div
-          v-if="assignments.length === 0"
+          v-if="isLoading"
           class="page-message"
         >
-          <h2>No assignments available</h2>
-
-          <p>
-            New tuition assignments will appear here.
-          </p>
-        </div>
+          Loading assignments...
+        </p>
 
         <div
-          v-else
-          class="assignment-list"
+          v-else-if="errorMessage"
+          class="page-message error-message"
         >
-          <AssignmentCard
-            v-for="assignment in assignments"
-            :key="assignment.id"
-            :assignment="assignment"
-          />
+          <p>
+            {{ errorMessage }}
+          </p>
+
+          <button
+            type="button"
+            @click="loadAssignments"
+          >
+            Try Again
+          </button>
         </div>
-      </template>
-    </section>
+
+        <template v-else>
+          <p
+            class="result-count"
+            aria-live="polite"
+          >
+            {{ filteredAssignments.length }}
+            {{
+              filteredAssignments.length === 1
+                ? 'assignment'
+                : 'assignments'
+            }}
+            found
+          </p>
+
+          <div
+            v-if="assignments.length === 0"
+            class="page-message"
+          >
+            <h2>
+              No assignments available
+            </h2>
+
+            <p>
+              New tuition assignments will appear here.
+            </p>
+          </div>
+
+          <div
+            v-else-if="
+              filteredAssignments.length === 0
+            "
+            class="page-message"
+          >
+            <h2>
+              No matching assignments
+            </h2>
+
+            <p>
+              Try changing or removing some filters.
+            </p>
+
+            <button
+              v-if="activeFilterCount > 0"
+              type="button"
+              class="clear-filters-button"
+              @click="clearFilters"
+            >
+              Clear All Filters
+            </button>
+          </div>
+
+          <div
+            v-else
+            class="assignment-list"
+          >
+            <AssignmentCard
+              v-for="
+                assignment
+                in filteredAssignments
+              "
+              :key="assignment.id"
+              :assignment="assignment"
+            />
+          </div>
+        </template>
+      </section>
+    </div>
   </main>
 </template>
 
@@ -125,9 +332,9 @@ onMounted(loadAssignments)
 }
 
 .page-header,
-.results {
+.layout {
   width: 100%;
-  max-width: 1000px;
+  max-width: 1200px;
   margin-right: auto;
   margin-left: auto;
 }
@@ -149,6 +356,13 @@ onMounted(loadAssignments)
   margin-top: 8px;
   color: var(--color-text-muted);
   font-size: 1.1rem;
+}
+
+.layout {
+  display: grid;
+  grid-template-columns: 280px minmax(0, 1fr);
+  align-items: start;
+  gap: 24px;
 }
 
 .results {
@@ -192,7 +406,8 @@ onMounted(loadAssignments)
   color: var(--color-error);
 }
 
-.error-message button {
+.error-message button,
+.clear-filters-button {
   margin-top: 16px;
   padding: 10px 18px;
   border: none;
@@ -204,8 +419,15 @@ onMounted(loadAssignments)
   cursor: pointer;
 }
 
-.error-message button:hover {
+.error-message button:hover,
+.clear-filters-button:hover {
   background: var(--color-primary-dark);
+}
+
+@media (max-width: 850px) {
+  .layout {
+    grid-template-columns: 1fr;
+  }
 }
 
 @media (max-width: 600px) {
