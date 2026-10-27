@@ -10,9 +10,14 @@ import {
   useRouter,
 } from "vue-router";
 
+import AppNavBar from "../components/AppNavBar.vue";
 import MatchRing from "../components/MatchRing.vue";
+import { useCurrentAccount } from "../composables/useCurrentAccount.js";
 import { fetchTutor } from "../services/tutors.js";
-import { getCompatibility } from "../utils/compatibility.js";
+import {
+  buildCriteria,
+  getCompatibility,
+} from "../utils/compatibility.js";
 import { filtersFromQuery } from "../utils/filterQuery.js";
 import {
   formatCredentials,
@@ -39,12 +44,24 @@ const resultsPath =
     ? previousPath
     : "/find-tutors";
 
-// Same filters as the results page, so the match % is the same as on the card.
+// The signed-in user's account, for the navigation bar (FR-005) and,
+// for students, the preferences saved in Create Profile (FR-026).
+const { account } = useCurrentAccount();
+
+// Same filters and preferences as the results page,
+// so the match % is the same as on the tutor's card (FR-011).
 const filters = filtersFromQuery(router.resolve(resultsPath).query);
 
-const compatibility = computed(() =>
-  tutor.value ? getCompatibility(tutor.value, filters) : null
-);
+const compatibility = computed(() => {
+  if (!tutor.value) {
+    return null;
+  }
+
+  const preferences =
+    account.value?.role === "student" ? account.value : {};
+
+  return getCompatibility(tutor.value, buildCriteria(filters, preferences));
+});
 
 // Icon outlines (24x24) for the detail rows, matching the prototype.
 const ICON_PATHS = {
@@ -55,16 +72,19 @@ const ICON_PATHS = {
     "M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20Z M15 9.5C15 8.1 13.7 7 12 7s-3 1-3 2.5 1.3 2 3 2.5 3 1.1 3 2.5-1.3 2.5-3 2.5-3-1.1-3-2.5 M12 5.5V7 M12 17v1.5",
   location:
     "M12 22s7-6.2 7-12a7 7 0 1 0-14 0c0 5.8 7 12 7 12Z M12 12.5a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5Z",
+  lessonModes: "M3 4h18v12H3Z M8 20h8 M12 16v4",
 };
 
 const detailRows = computed(() => {
-  const { levels, subjects, hourlyRate, location } = tutor.value;
+  const { levels, subjects, hourlyRate, location, lessonModes } = tutor.value;
 
   return [
     { icon: "qualification", text: formatCredentials(tutor.value) },
     { icon: "subjects", text: `${levels.join(", ")} · ${subjects.join(", ")}` },
     { icon: "rate", text: `$${hourlyRate}/hr` },
     { icon: "location", text: location },
+    // FR-013 teaching mode, e.g. "In-person & Online".
+    { icon: "lessonModes", text: (lessonModes ?? []).join(" & ") },
   ].filter((row) => row.text);
 });
 
@@ -81,8 +101,12 @@ onMounted(async () => {
 </script>
 
 <template>
-  <!-- TODO (FR-005): navigation bar goes here once it is built. -->
   <main class="tutor-profile-page">
+    <!-- FR-005 -->
+    <div class="nav-wrapper">
+      <AppNavBar :account="account" />
+    </div>
+
     <div class="container">
       <RouterLink :to="resultsPath" class="back-link">
         <span aria-hidden="true">←</span> Back to Results
@@ -181,9 +205,14 @@ onMounted(async () => {
 </template>
 
 <style scoped>
+.nav-wrapper {
+  max-width: 1200px;
+  margin: 0 auto 28px;
+}
+
 .tutor-profile-page {
   min-height: 100vh;
-  padding: 32px 20px;
+  padding: 24px 20px 32px;
   box-sizing: border-box;
   background: var(--color-bg);
   color: var(--color-text);

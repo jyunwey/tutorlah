@@ -6,15 +6,21 @@ import {
   watch,
 } from "vue";
 import {
+  RouterLink,
   useRoute,
   useRouter,
 } from "vue-router";
 
+import AppNavBar from "../components/AppNavBar.vue";
 import TutorCard from "../components/TutorCard.vue";
 import TutorFilters from "../components/TutorFilters.vue";
+import { useCurrentAccount } from "../composables/useCurrentAccount.js";
 import { createEmptyFilters } from "../constants/tutorFilters.js";
 import { fetchTutors } from "../services/tutors.js";
-import { getCompatibility } from "../utils/compatibility.js";
+import {
+  buildCriteria,
+  getCompatibility,
+} from "../utils/compatibility.js";
 import {
   filtersFromQuery,
   filtersToQuery,
@@ -22,6 +28,14 @@ import {
 
 const route = useRoute();
 const router = useRouter();
+
+// The signed-in user's account, for the navigation bar (FR-005) and,
+// for students, the preferences saved in Create Profile (FR-026).
+const {
+  user,
+  account,
+  isLoading: isAccountLoading,
+} = useCurrentAccount();
 
 const tutors = ref([]);
 const isLoading = ref(true);
@@ -61,6 +75,25 @@ const filteredTutors = computed(() =>
   tutors.value.filter((tutor) =>
     matchesFilters(tutor, filters.value)
   )
+);
+
+// FR-011: what each tutor is scored against. Uses the filters first,
+// then the student's saved preferences; tutors have no preferences.
+const criteria = computed(() =>
+  buildCriteria(
+    filters.value,
+    account.value?.role === "student" ? account.value : {}
+  )
+);
+
+// Best match first, like the prototype. Tutors without a score go last.
+const rankedTutors = computed(() =>
+  filteredTutors.value
+    .map((tutor) => ({
+      tutor,
+      compatibility: getCompatibility(tutor, criteria.value),
+    }))
+    .sort((a, b) => (b.compatibility ?? -1) - (a.compatibility ?? -1))
 );
 
 // FR-010: a tutor is shown only if they match every filter
@@ -134,8 +167,12 @@ onMounted(async () => {
 </script>
 
 <template>
-  <!-- TODO (FR-005): navigation bar goes here once it is built. -->
   <main class="find-tutors-page">
+    <!-- FR-005 -->
+    <div class="nav-wrapper">
+      <AppNavBar :account="account" />
+    </div>
+
     <header class="page-header">
       <h1>Find Tutors</h1>
       <p>Browse tutors based on your needs.</p>
@@ -167,7 +204,14 @@ onMounted(async () => {
 
       <!-- FR-008 -->
       <section class="results">
-        <p v-if="isLoading" class="status">Loading tutors...</p>
+        <p v-if="isLoading || isAccountLoading" class="status">
+          Loading tutors...
+        </p>
+
+        <p v-else-if="!user" class="status">
+          Please sign in to see tutors.
+          <RouterLink to="/register">Create an account</RouterLink>
+        </p>
 
         <p v-else-if="errorMessage" class="status error">
           {{ errorMessage }}
@@ -198,10 +242,10 @@ onMounted(async () => {
 
           <div v-else class="card-list">
             <TutorCard
-              v-for="tutor in filteredTutors"
+              v-for="{ tutor, compatibility } in rankedTutors"
               :key="tutor.id"
               :tutor="tutor"
-              :compatibility="getCompatibility(tutor, filters)"
+              :compatibility="compatibility"
               @view-profile="viewProfile"
             />
           </div>
@@ -214,16 +258,26 @@ onMounted(async () => {
 <style scoped>
 .find-tutors-page {
   min-height: 100vh;
-  padding: 40px 20px;
+  padding: 24px 20px 40px;
   box-sizing: border-box;
   background: var(--color-bg);
   color: var(--color-text);
   font-family: var(--font-sans);
 }
 
+.nav-wrapper {
+  max-width: 1200px;
+  margin: 0 auto 32px;
+}
+
 .page-header {
   max-width: 1200px;
   margin: 0 auto 28px;
+}
+
+.status a {
+  color: var(--color-primary);
+  font-weight: 600;
 }
 
 .page-header h1,
