@@ -16,6 +16,8 @@ import FindAssignmentsView from
   "../views/FindAssignmentsView.vue";
 import CreateProfileView from
   "../views/CreateProfileView.vue";
+import ComingSoonView from
+  "../views/ComingSoonView.vue";
 import LoginView from "../views/LoginView.vue";
 
 import { createRouter, createWebHistory } from 'vue-router'
@@ -71,6 +73,18 @@ const router = createRouter({
       path: '/find-assignments',
       name: 'find-assignments',
       component: FindAssignmentsView,
+    },
+    {
+      path: "/my-matches",
+      name: "my-matches",
+      component: ComingSoonView,
+      meta: { title: "My Matches" },
+    },
+    {
+      path: "/saved",
+      name: "saved",
+      component: ComingSoonView,
+      meta: { title: "Saved" },
     },
     {
       path: "/:pathMatch(.*)*",
