@@ -90,6 +90,160 @@ export function buildCriteria(filters, preferences = {}) {
   };
 }
 
+// FR-014: compares one assignment with the signed-in tutor's profile.
+//
+// Every applicable criterion counts equally. Optional assignment fields
+// that were not selected are skipped.
+export function getAssignmentCompatibility(
+  tutor,
+  assignment,
+) {
+  if (!tutor || !assignment) {
+    return null;
+  }
+
+  const checks = [];
+
+  if (assignment.subject) {
+    checks.push(
+      (tutor.subjects ?? []).includes(
+        assignment.subject,
+      ),
+    );
+  }
+
+  if (assignment.level) {
+    checks.push(
+      (tutor.levels ?? []).includes(
+        assignment.level,
+      ),
+    );
+  }
+
+  if (assignment.learningMode) {
+    const acceptableModes =
+      assignment.learningMode === "Either"
+        ? ["In-person", "Online"]
+        : [assignment.learningMode];
+
+    checks.push(
+      sharesAny(
+        tutor.lessonModes,
+        acceptableModes,
+      ),
+    );
+  }
+
+  if (assignment.location) {
+    const onlineIsPossible =
+      ["Online", "Either"].includes(
+        assignment.learningMode,
+      ) &&
+      (tutor.lessonModes ?? []).includes(
+        "Online",
+      );
+
+    checks.push(
+      tutor.location === assignment.location ||
+        onlineIsPossible,
+    );
+  }
+
+  const maximumRate =
+    Number(assignment.maximumRate);
+
+  const tutorRate =
+    Number(tutor.hourlyRate);
+
+  if (Number.isFinite(maximumRate)) {
+    checks.push(
+      Number.isFinite(tutorRate) &&
+        tutorRate <= maximumRate,
+    );
+  }
+
+  const requiredAvailability =
+    assignmentAvailability(assignment);
+
+  if (requiredAvailability.length > 0) {
+    checks.push(
+      sharesAny(
+        tutor.availability,
+        requiredAvailability,
+      ),
+    );
+  }
+
+  if (
+    assignment.teachingStyle &&
+    assignment.teachingStyle !== "No preference"
+  ) {
+    const requiredStyle =
+      assignment.teachingStyle === "Interactive"
+        ? "Visual / Interactive"
+        : assignment.teachingStyle;
+
+    checks.push(
+      (tutor.teachingStyles ?? []).includes(
+        requiredStyle,
+      ),
+    );
+  }
+
+  if (checks.length === 0) {
+    return null;
+  }
+
+  const numberOfMatches =
+    checks.filter(Boolean).length;
+
+  return Math.round(
+    (numberOfMatches / checks.length) * 100,
+  );
+}
+
+function assignmentAvailability(assignment) {
+  const day = assignment.preferredDay;
+  const timeSlot =
+    assignment.preferredTimeSlot;
+
+  if (!day && !timeSlot) {
+    return [];
+  }
+
+  if (
+    day === "Saturday" ||
+    day === "Sunday"
+  ) {
+    return ["Weekend"];
+  }
+
+  if (!timeSlot) {
+    return [
+      "Weekday Morning",
+      "Weekday Afternoon",
+      "Weekday Evening",
+    ];
+  }
+
+  const startingHour =
+    Number(timeSlot.slice(0, 2));
+
+  if (!Number.isFinite(startingHour)) {
+    return [];
+  }
+
+  if (startingHour < 12) {
+    return ["Weekday Morning"];
+  }
+
+  if (startingHour < 18) {
+    return ["Weekday Afternoon"];
+  }
+
+  return ["Weekday Evening"];
+}
+
 // True if the two lists have at least one value in common.
 function sharesAny(list, wanted) {
   return (wanted ?? []).some((value) => (list ?? []).includes(value));
