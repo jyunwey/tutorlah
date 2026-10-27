@@ -12,11 +12,16 @@ import ProfileView from
 //import HomeView from "../views/HomeView.vue";
 import TutorProfileView from
   "../views/TutorProfileView.vue";
+import FindAssignmentsView from
+  "../views/FindAssignmentsView.vue";
 import CreateProfileView from
   "../views/CreateProfileView.vue";
+import ComingSoonView from
+  "../views/ComingSoonView.vue";
 import LoginView from "../views/LoginView.vue";
 
 import { createRouter, createWebHistory } from 'vue-router'
+import { getCurrentRole } from "../services/session.js";
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -42,6 +47,7 @@ const router = createRouter({
     path: "/post-assignment",
     name: "post-assignment",
     component: PostAssignmentView,
+    meta: { roles: ["student"] },
     },
     {
       path: "/find-tutors",
@@ -63,6 +69,23 @@ const router = createRouter({
       name: "profile",
       component: ProfileView,
     },
+     {
+      path: '/find-assignments',
+      name: 'find-assignments',
+      component: FindAssignmentsView,
+    },
+    {
+      path: "/my-matches",
+      name: "my-matches",
+      component: ComingSoonView,
+      meta: { title: "My Matches" },
+    },
+    {
+      path: "/saved",
+      name: "saved",
+      component: ComingSoonView,
+      meta: { title: "Saved" },
+    },
     {
       path: "/:pathMatch(.*)*",
       redirect: "/register",
@@ -73,6 +96,18 @@ const router = createRouter({
       component: LoginView,
     },
   ],
+})
+
+router.beforeEach(async (to) => {
+  const allowedRoles = to.meta.roles;
+  if (!allowedRoles) return true;
+  try {
+    const role = await getCurrentRole();
+    if (role && !allowedRoles.includes(role)) return "/home";
+  } catch (error) {
+    console.error("Could not check role:", error);
+  }
+  return true;
 })
 
 export default router

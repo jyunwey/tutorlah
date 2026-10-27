@@ -1,4 +1,5 @@
 <script setup>
+import AppNavBar from "../components/AppNavBar.vue";
 import { reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 
@@ -155,6 +156,9 @@ function handleCancel() {
 
 <template>
   <main class="post-assignment-page">
+    <div class="page-nav">
+      <AppNavBar />
+    </div>
     <h1>Post a Tuition Assignment</h1>
 
     <p>
@@ -514,6 +518,10 @@ function handleCancel() {
   </main>
 </template>
 <style scoped>
+.page-nav {
+  margin-bottom: 32px;
+}
+
 .post-assignment-page {
   min-height: 100vh;
   padding: 48px 20px;
