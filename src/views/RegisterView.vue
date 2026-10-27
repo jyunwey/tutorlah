@@ -1,14 +1,12 @@
 <script setup>
 import AuthLayout from "../components/AuthLayout.vue";
 import { ref, computed } from "vue";
+import { RouterLink } from "vue-router";
 
 import {
   registerUser,
 } from "../services/auth.js";
 
-import { useRouter } from "vue-router";
-
-const router = useRouter();
 
 const firstName = ref("");
 const lastName = ref("");
@@ -62,12 +60,11 @@ async function handleRegistration() {
     );
 
     message.value =
-      "Account created successfully. " +
-      "Please check your email.";
+      "Registered successfully. " +
+      "Please check your email to verify your account before logging in.";
 
     messageType.value = "success";
 
-    await router.push("/create-profile");
   } catch (error) {
     console.error(
       "Registration failed:",
@@ -271,6 +268,11 @@ async function handleRegistration() {
     >
       {{ message }}
     </p>
+
+    <p class="auth-switch">
+      Already have an account?
+      <RouterLink to="/login">Log In</RouterLink>
+    </p>
   </AuthLayout>
 </template>
 
@@ -389,14 +391,17 @@ select {
 
 .form-message.success {
   color: green;
+  font-size: 13px;
 }
 
 .form-message.error {
   color: red;
+  font-size: 13px;
 }
 
 .form-message.loading {
   color: #52658a;
+  font-size: 13px;
 }
 
 .validation-error {

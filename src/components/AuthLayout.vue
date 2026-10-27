@@ -114,4 +114,20 @@
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
 }
 
+.auth-content :deep(.auth-switch) {
+  margin: 20px 0 0;
+  text-align: center;
+  font-size: 13px;
+  color: #52658a;
+}
+
+.auth-content :deep(.auth-switch a) {
+  color: #00875a;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.auth-content :deep(.auth-switch a:hover) {
+  text-decoration: underline;
+}
 </style>
