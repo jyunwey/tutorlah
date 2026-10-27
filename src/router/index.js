@@ -9,10 +9,14 @@ import PostAssignmentView from
 import ProfileView from
   "../views/ProfileView.vue";
 //import TutorSetupView from "../views/TutorSetupView.vue";
+//import HomeView from "../views/HomeView.vue";
 import TutorProfileView from
   "../views/TutorProfileView.vue";
+import FindAssignmentsView from
+  "../views/FindAssignmentsView.vue";
 import CreateProfileView from
   "../views/CreateProfileView.vue";
+import LoginView from "../views/LoginView.vue";
 
 import { createRouter, createWebHistory } from 'vue-router'
 import { getCurrentRole } from "../services/session.js";
@@ -63,9 +67,19 @@ const router = createRouter({
       name: "profile",
       component: ProfileView,
     },
+     {
+      path: '/find-assignments',
+      name: 'find-assignments',
+      component: FindAssignmentsView,
+    },
     {
       path: "/:pathMatch(.*)*",
       redirect: "/register",
+    },
+    {
+      path: "/login",
+      name: "login",
+      component: LoginView,
     },
   ],
 })
