@@ -15,6 +15,7 @@ import CreateProfileView from
   "../views/CreateProfileView.vue";
 
 import { createRouter, createWebHistory } from 'vue-router'
+import { getCurrentRole } from "../services/session.js";
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -40,6 +41,7 @@ const router = createRouter({
     path: "/post-assignment",
     name: "post-assignment",
     component: PostAssignmentView,
+    meta: { roles: ["student"] },
     },
     {
       path: "/find-tutors",
@@ -66,6 +68,18 @@ const router = createRouter({
       redirect: "/register",
     },
   ],
+})
+
+router.beforeEach(async (to) => {
+  const allowedRoles = to.meta.roles;
+  if (!allowedRoles) return true;
+  try {
+    const role = await getCurrentRole();
+    if (role && !allowedRoles.includes(role)) return "/home";
+  } catch (error) {
+    console.error("Could not check role:", error);
+  }
+  return true;
 })
 
 export default router
