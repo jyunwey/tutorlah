@@ -12,6 +12,8 @@ import ProfileView from
 //import HomeView from "../views/HomeView.vue";
 import TutorProfileView from
   "../views/TutorProfileView.vue";
+import FindAssignmentsView from
+  "../views/FindAssignmentsView.vue";
 import CreateProfileView from
   "../views/CreateProfileView.vue";
 import LoginView from "../views/LoginView.vue";
@@ -62,6 +64,11 @@ const router = createRouter({
       path: "/profile",
       name: "profile",
       component: ProfileView,
+    },
+     {
+      path: '/find-assignments',
+      name: 'find-assignments',
+      component: FindAssignmentsView,
     },
     {
       path: "/:pathMatch(.*)*",
