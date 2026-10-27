@@ -6,6 +6,7 @@ import {
   sendPasswordResetEmail,
   onAuthStateChanged,
   deleteUser,
+  reload
 } from "firebase/auth";
 
 import {
@@ -96,6 +97,8 @@ export async function registerUser({
 
   await sendEmailVerification(user);
 
+  await signOut(auth);
+
   return user;
 }
 
@@ -110,8 +113,24 @@ export async function loginUser(
       password
     );
 
-  return credential.user;
-}
+    const user = credential.user;
+
+    // Refresh verification status and check
+    await reload(user);
+
+    if (!user.emailVerified) {
+      await signOut(auth);
+
+      const error = new Error(
+        "Please verify your email before logging in."
+      );
+      error.code = "auth/email-not-verified";
+      throw error;
+    }
+
+    return user;
+  }
+
 
 export async function logoutUser() {
   await signOut(auth);
