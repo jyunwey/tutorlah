@@ -65,3 +65,37 @@ export async function createProfile(uid, account, values) {
   });
   await batch.commit();
 }
+
+export async function updateProfile(uid, account, values, hasTutorProfile) {
+  const userRef = doc(db, "users", uid);
+
+  if (account.role !== "tutor") {
+    await updateDoc(userRef, {
+      ...pick(values, STUDENT_FIELDS),
+      updatedAt: serverTimestamp(),
+    });
+    return;
+  }
+
+  const batch = writeBatch(db);
+  const tutorRef = doc(db, "tutorProfiles", uid);
+  if (hasTutorProfile) {
+    batch.update(tutorRef, {
+      ...pick(values, TUTOR_PROFILE_FIELDS),
+      updatedAt: serverTimestamp(),
+    });
+  } else {
+    batch.set(tutorRef, {
+      ...pick(values, TUTOR_PROFILE_FIELDS),
+      firstName: account.firstName,
+      lastName: account.lastName,
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    });
+  }
+  batch.update(userRef, {
+    phone: values.phone ?? "",
+    updatedAt: serverTimestamp(),
+  });
+  await batch.commit();
+}
