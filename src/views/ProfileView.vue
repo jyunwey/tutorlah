@@ -4,9 +4,17 @@ import { doc, getDoc } from "firebase/firestore";
 import { db } from "../firebase.js";
 import { observeCurrentUser } from "../services/auth.js";
 import AppNavBar from "../components/AppNavBar.vue";
+import ProfileForm from "../components/ProfileForm.vue";
+import { LEVELS } from "../constants/tutorFilters.js";
+import { updateProfile } from "../services/profile.js";
 
 const profile = ref(null);
 const tutorProfile = ref(null);
+const userId = ref("");
+const isEditing = ref(false);
+const isSaving = ref(false);
+const saveError = ref("");
+const saveMessage = ref("");
 const isLoading = ref(true);
 const isSignedIn = ref(false);
 const errorMessage = ref("");
@@ -26,10 +34,21 @@ const roleLabel = computed(() => {
   return "Unknown role";
 });
 
+const LEVEL_LABELS = Object.fromEntries(LEVELS.map((level) => [level.value, level.label]));
+
+function levelLabel(value) {
+  return LEVEL_LABELS[value] || value;
+}
+
 function display(value) {
   if (Array.isArray(value)) return value.length ? value.join(", ") : "Not set";
   if (value === undefined || value === null || value === "") return "Not set";
   return String(value);
+}
+
+function rateRange(min, max) {
+  if (typeof min !== "number" || typeof max !== "number") return null;
+  return `S$${min} to S$${max} / hour`;
 }
 
 const detailRows = computed(() => {
@@ -42,25 +61,30 @@ const detailRows = computed(() => {
     ["Location", isTutor.value ? teaching.location : account.location],
   ];
 
-  // Null entries preserve the prototype's layout without inventing saved data.
-  // These fields need an agreed schema before the edit/save feature is added.
   const specific = isTutor.value
     ? [
         ["Subjects I Teach", teaching.subjects],
-        ["Academic Background", null],
-        ["Teaching Experience", null],
-        ["Preferred Levels", teaching.levels],
+        ["Academic Background", teaching.qualification],
+        [
+          "Teaching Experience",
+          typeof teaching.yearsOfExperience === "number"
+            ? `${teaching.yearsOfExperience} ${teaching.yearsOfExperience === 1 ? "year" : "years"}`
+            : null,
+        ],
+        ["Preferred Levels", (teaching.levels || []).map(levelLabel)],
         ["Preferred Hourly Rate", typeof teaching.hourlyRate === "number" ? `S$${teaching.hourlyRate} / hour` : null],
-        ["Preferred Teaching Mode", null],
+        ["Preferred Teaching Mode", teaching.lessonModes],
+        ["Availability", teaching.availability],
         ["Teaching Styles", teaching.teachingStyles],
         ["About Me", teaching.bio],
       ]
     : [
-        ["Preferred Subjects", null],
-        ["Academic Level", account.level],
-        ["Preferred Learning Mode", null],
-        ["Preferred Hourly Rate", null],
-        ["Preferred Teaching Style", null],
+        ["Preferred Subjects", account.subjects],
+        ["Academic Level", account.level ? levelLabel(account.level) : null],
+        ["Preferred Learning Mode", account.lessonModes],
+        ["Preferred Hourly Rate", rateRange(account.budgetMin, account.budgetMax)],
+        ["Availability", account.availability],
+        ["Preferred Teaching Style", account.teachingStyles],
       ];
 
   return [...common, ...specific].map(([label, value]) => ({
@@ -69,6 +93,45 @@ const detailRows = computed(() => {
   }));
 });
 
+const formValues = computed(() => {
+  if (!profile.value) return {};
+  if (isTutor.value) return { ...(tutorProfile.value || {}), phone: profile.value.phone };
+  return { ...profile.value };
+});
+
+function startEditing() {
+  saveError.value = "";
+  saveMessage.value = "";
+  isEditing.value = true;
+}
+
+function cancelEditing() {
+  saveError.value = "";
+  isEditing.value = false;
+}
+
+async function handleSave(values) {
+  isSaving.value = true;
+  saveError.value = "";
+  try {
+    await updateProfile(userId.value, profile.value, values, Boolean(tutorProfile.value));
+    if (isTutor.value) {
+      const { phone, ...teachingValues } = values;
+      tutorProfile.value = { ...(tutorProfile.value || {}), ...teachingValues };
+      profile.value = { ...profile.value, phone };
+    } else {
+      profile.value = { ...profile.value, ...values };
+    }
+    isEditing.value = false;
+    saveMessage.value = "Your profile has been updated.";
+  } catch (error) {
+    console.error("Could not save profile:", error);
+    saveError.value = "We could not save your changes. Please try again.";
+  } finally {
+    isSaving.value = false;
+  }
+}
+
 onMounted(() => {
   unsubscribe = observeCurrentUser(async (user) => {
     const currentRequest = ++requestId;
@@ -76,6 +139,9 @@ onMounted(() => {
     tutorProfile.value = null;
     errorMessage.value = "";
     isSignedIn.value = Boolean(user);
+    userId.value = user?.uid || "";
+    isEditing.value = false;
+    saveMessage.value = "";
     isLoading.value = true;
 
     if (!user) {
@@ -134,8 +200,7 @@ onUnmounted(() => {
               <h2>{{ fullName }}</h2>
               <p>{{ roleLabel }}</p>
             </div>
-            <!-- Visual checkpoint only; enable after implementing edit/save. -->
-            <button class="edit-button" type="button" disabled title="Profile editing is not available yet">
+            <button v-if="!isEditing" class="edit-button" type="button" @click="startEditing">
               <svg viewBox="0 0 24 24" aria-hidden="true">
                 <path d="m16 3 5 5-12 12-6 1 1-6L16 3Z" fill="currentColor" />
                 <path d="m14 5 5 5" stroke="white" stroke-width="1.5" />
@@ -144,7 +209,23 @@ onUnmounted(() => {
             </button>
           </div>
 
-          <dl class="details-table">
+          <p v-if="saveMessage" class="save-message" role="status">{{ saveMessage }}</p>
+
+          <div v-if="isEditing" class="edit-panel">
+            <p class="email-note">Email address: {{ profile.email }} (cannot be changed)</p>
+            <ProfileForm
+              :role="profile.role"
+              :initial-values="formValues"
+              submit-label="Save Changes"
+              :is-saving="isSaving"
+              :save-error="saveError"
+              show-cancel
+              @submit="handleSave"
+              @cancel="cancelEditing"
+            />
+          </div>
+
+          <dl v-else class="details-table">
             <div v-for="row in detailRows" :key="row.label" class="detail-row">
               <dt>{{ row.label }}</dt>
               <dd :class="{ unset: row.value === 'Not set' }">{{ row.value }}</dd>
@@ -177,7 +258,12 @@ h2 { margin: 0 0 6px; font-size: 24px; letter-spacing: -.6px; overflow-wrap: any
 .identity p { margin: 0; color: #616999; font-size: 15px; }
 .edit-button { display: inline-flex; align-items: center; justify-content: center; gap: 8px; flex-shrink: 0; margin-left: auto; border: 1px solid #39ae86; border-radius: 5px; padding: 11px 18px; background: #fff; color: #00805d; font: inherit; font-size: 14px; font-weight: 600; }
 .edit-button svg { width: 19px; height: 19px; }
-.edit-button:disabled { cursor: not-allowed; }
+.edit-button { cursor: pointer; }
+.edit-button:hover { background: #f0faf6; }
+.save-message { margin: 0 8px 20px; padding: 12px 16px; border: 1px solid #b7e4d2; border-radius: 6px; background: #e9f8f1; color: #00684b; font-size: 14px; font-weight: 600; }
+.edit-panel { margin: 0 8px; }
+.email-note { margin: 0 0 18px; color: #616999; font-size: 14px; }
+button:focus-visible { outline: 3px solid #008563; outline-offset: 4px; }
 .details-table { margin: 0; padding: 0 16px; border: 1px solid #e3e8f0; border-radius: 5px; background: #fff; }
 .detail-row { display: grid; grid-template-columns: 44% minmax(0, 1fr); gap: 12px; padding: 15px 0; border-bottom: 1px solid #e7eaf3; font-size: 14px; line-height: 1.6; }
 .detail-row:last-child { border-bottom: 0; }
