@@ -42,3 +42,21 @@ npm run build
 ```sh
 npm run lint
 ```
+
+## Deploy to Firebase Hosting (NFR-006)
+
+Live site: https://tutorlah-24204.web.app
+
+Deploy only from an up-to-date `main`, after merging:
+
+```sh
+git checkout main
+git pull origin main
+npm install
+npm run build
+npx firebase-tools deploy --only hosting
+```
+
+The first time, run `npx firebase-tools login` with a Google account that has access to the `tutorlah-24204` Firebase project.
+
+To publish `firestore.rules`, run `npx firebase-tools deploy --only firestore:rules`. This replaces the rules in the Firebase Console, so check that `firestore.rules` on `main` is the latest version first.
