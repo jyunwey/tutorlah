@@ -95,7 +95,8 @@ const detailRows = computed(() => {
 
 const formValues = computed(() => {
   if (!profile.value) return {};
-  if (isTutor.value) return { ...(tutorProfile.value || {}), phone: profile.value.phone };
+  const names = { firstName: profile.value.firstName, lastName: profile.value.lastName };
+  if (isTutor.value) return { ...(tutorProfile.value || {}), ...names, phone: profile.value.phone };
   return { ...profile.value };
 });
 
@@ -116,9 +117,9 @@ async function handleSave(values) {
   try {
     await updateProfile(userId.value, profile.value, values, Boolean(tutorProfile.value));
     if (isTutor.value) {
-      const { phone, ...teachingValues } = values;
-      tutorProfile.value = { ...(tutorProfile.value || {}), ...teachingValues };
-      profile.value = { ...profile.value, phone };
+      const { phone, firstName, lastName, ...teachingValues } = values;
+      tutorProfile.value = { ...(tutorProfile.value || {}), ...teachingValues, firstName, lastName };
+      profile.value = { ...profile.value, phone, firstName, lastName };
     } else {
       profile.value = { ...profile.value, ...values };
     }
@@ -220,6 +221,7 @@ onUnmounted(() => {
               :is-saving="isSaving"
               :save-error="saveError"
               show-cancel
+              show-name
               @submit="handleSave"
               @cancel="cancelEditing"
             />

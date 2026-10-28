@@ -32,6 +32,8 @@ const TUTOR_PROFILE_FIELDS = [
   "bio",
 ];
 
+const NAME_FIELDS = ["firstName", "lastName"];
+
 function pick(values, fields) {
   return Object.fromEntries(
     fields.filter((field) => field in values).map((field) => [field, values[field]]),
@@ -69,8 +71,11 @@ export async function createProfile(uid, account, values) {
 export async function updateProfile(uid, account, values, hasTutorProfile) {
   const userRef = doc(db, "users", uid);
 
+  const names = pick(values, NAME_FIELDS);
+
   if (account.role !== "tutor") {
     await updateDoc(userRef, {
+      ...names,
       ...pick(values, STUDENT_FIELDS),
       updatedAt: serverTimestamp(),
     });
@@ -82,6 +87,7 @@ export async function updateProfile(uid, account, values, hasTutorProfile) {
   if (hasTutorProfile) {
     batch.update(tutorRef, {
       ...pick(values, TUTOR_PROFILE_FIELDS),
+      ...names,
       updatedAt: serverTimestamp(),
     });
   } else {
@@ -89,11 +95,13 @@ export async function updateProfile(uid, account, values, hasTutorProfile) {
       ...pick(values, TUTOR_PROFILE_FIELDS),
       firstName: account.firstName,
       lastName: account.lastName,
+      ...names,
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
     });
   }
   batch.update(userRef, {
+    ...names,
     phone: values.phone ?? "",
     updatedAt: serverTimestamp(),
   });

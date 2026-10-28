@@ -18,11 +18,14 @@ const props = defineProps({
   isSaving: { type: Boolean, default: false },
   saveError: { type: String, default: "" },
   showCancel: { type: Boolean, default: false },
+  showName: { type: Boolean, default: false },
 });
 
 const emit = defineEmits(["submit", "cancel"]);
 
 const DEFAULTS = {
+  firstName: "",
+  lastName: "",
   phone: "",
   location: "",
   subjects: [],
@@ -59,6 +62,7 @@ const showErrors = ref(false);
 const isTutor = computed(() => props.role === "tutor");
 
 const PHONE_PATTERN = /^\+?[0-9 ]{8,15}$/;
+const NAME_MAX_LENGTH = 50;
 const RATE_MIN = 10;
 const RATE_MAX = 300;
 
@@ -93,6 +97,10 @@ const choiceGroups = computed(() =>
 
 const errors = computed(() => {
   const found = {};
+  if (props.showName) {
+    if (!form.firstName.trim()) found.firstName = "Enter your first name.";
+    if (!form.lastName.trim()) found.lastName = "Enter your last name.";
+  }
   if (form.phone && !PHONE_PATTERN.test(form.phone)) {
     found.phone = "Enter a valid phone number, e.g. 9123 4567.";
   }
@@ -132,6 +140,9 @@ function errorFor(key) {
 
 function buildPayload() {
   const shared = {
+    ...(props.showName
+      ? { firstName: form.firstName.trim(), lastName: form.lastName.trim() }
+      : {}),
     phone: form.phone,
     location: form.location,
     subjects: [...form.subjects],
@@ -172,8 +183,20 @@ async function handleSubmit() {
 <template>
   <form class="profile-form" novalidate @submit.prevent="handleSubmit">
     <section class="form-section" aria-labelledby="contact-heading">
-      <h2 id="contact-heading">Contact and Location</h2>
+      <h2 id="contact-heading">{{ showName ? "Name, Contact and Location" : "Contact and Location" }}</h2>
       <div class="field-grid">
+        <template v-if="showName">
+          <label class="field">
+            <span>First Name <em class="required" aria-hidden="true">*</em></span>
+            <input id="field-firstName" v-model="form.firstName" type="text" :maxlength="NAME_MAX_LENGTH" autocomplete="given-name" required :aria-invalid="Boolean(errorFor('firstName'))" />
+            <small v-if="errorFor('firstName')" class="field-error">{{ errorFor("firstName") }}</small>
+          </label>
+          <label class="field">
+            <span>Last Name <em class="required" aria-hidden="true">*</em></span>
+            <input id="field-lastName" v-model="form.lastName" type="text" :maxlength="NAME_MAX_LENGTH" autocomplete="family-name" required :aria-invalid="Boolean(errorFor('lastName'))" />
+            <small v-if="errorFor('lastName')" class="field-error">{{ errorFor("lastName") }}</small>
+          </label>
+        </template>
         <label class="field">
           <span>Contact Number</span>
           <input id="field-phone" v-model.trim="form.phone" type="tel" inputmode="tel" placeholder="e.g. 9123 4567" :aria-invalid="Boolean(errorFor('phone'))" />
