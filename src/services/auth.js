@@ -54,9 +54,13 @@ export async function registerUser({
     );
   }
 
-  if (password.length < 8) {
+  if (
+    password.length < 8 ||
+    !/[A-Z]/.test(password) ||
+    !/[^A-Za-z0-9]/.test(password)
+  ) {
     throw new Error(
-      "Password must contain at least 8 characters."
+      "Password must contain at least 8 characters, one uppercase letter and one special character."
     );
   }
 

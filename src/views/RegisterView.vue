@@ -23,13 +23,15 @@ const isEmailValid = computed(() => {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.value.trim());
 });
 
-const isPasswordValid = computed(() => {
-  return (
-    password.value.length >= 8 &&
-    /[A-Z]/.test(password.value) &&
-    /[^A-Za-z0-9]/.test(password.value)
-  );
-});
+const passwordRules = computed(() => ({
+  minLength: password.value.length >= 8,
+  uppercase: /[A-Z]/.test(password.value),
+  specialChar: /[^A-Za-z0-9]/.test(password.value),
+}));
+
+const isPasswordValid = computed(() =>
+  Object.values(passwordRules.value).every(Boolean)
+);
 
 const isFormValid = computed(() => {
   return (
@@ -84,7 +86,7 @@ async function handleRegistration() {
     switch (error.code) {
       case "auth/email-already-in-use":
         message.value =
-          "This email is already registered.";
+          "Email has already been registered.";
         break;
 
       case "auth/invalid-email":
@@ -255,12 +257,28 @@ async function handleRegistration() {
           required
         />
 
-        <small
-          v-if="password && !isPasswordValid"
-          class="validation-error"
-        >
-          Password must have at least 8 characters, 1 uppercase letter and 1 special character.
-        </small>
+        <div class="password-checklist">
+          <p
+            :class="{ valid: passwordRules.minLength }"
+          >
+            <span>{{ passwordRules.minLength ? "✓" : "○" }}</span>
+            At least 8 characters
+          </p>
+
+          <p
+            :class="{ valid: passwordRules.uppercase }"
+          >
+            <span>{{ passwordRules.uppercase ? "✓" : "○" }}</span>
+            At least 1 uppercase letter
+          </p>
+
+          <p
+            :class="{ valid: passwordRules.specialChar }"
+          >
+            <span>{{ passwordRules.specialChar ? "✓" : "○" }}</span>
+            At least 1 special character
+          </p>
+        </div>
       </div>
 
       <button
@@ -445,5 +463,30 @@ select {
   flex: 1;
   height: 1px;
   background-color: #d5dce5;
+}
+
+.password-checklist {
+  display: grid;
+  gap: 2px;
+  margin-top: 4px;
+}
+
+.password-checklist p {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  font-size: 12px;
+  color: #8a94a6;
+}
+
+.password-checklist p.valid {
+  color: #00875a;
+}
+
+.password-checklist span {
+  font-size: 15px;
+  width: 16px;
+  text-align: center;
 }
 </style>
