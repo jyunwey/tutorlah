@@ -192,6 +192,7 @@ async function handleRegistration() {
       <div class="form-field">
         <label for="first-name">
           First name
+          <span class="required">*</span>
         </label>
 
         <input
@@ -206,6 +207,7 @@ async function handleRegistration() {
       <div class="form-field">
         <label for="last-name">
           Last name
+          <span class="required">*</span>
         </label>
 
         <input
@@ -220,6 +222,7 @@ async function handleRegistration() {
       <div class="form-field">
         <label for="email">
           Email
+          <span class="required">*</span>
         </label>
 
         <input
@@ -240,6 +243,7 @@ async function handleRegistration() {
       <div class="form-field">
         <label for="password">
           Password
+          <span class="required">*</span>
         </label>
 
         <input
@@ -276,6 +280,10 @@ async function handleRegistration() {
     >
       {{ message }}
     </p>
+
+    <div class="divider">
+      <span>or</span>
+    </div>
 
     <p class="auth-switch">
       Already have an account?
@@ -413,7 +421,29 @@ select {
 }
 
 .validation-error {
-  color: #d32f2f;
+  color: red;
   font-size: 12px;
+}
+
+.required {
+  color: red;
+  font-weight: 600;
+}
+
+.divider {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin: 20px 0;
+  color: #9ca3af;
+  font-size: 13px;
+}
+
+.divider::before,
+.divider::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background-color: #d5dce5;
 }
 </style>

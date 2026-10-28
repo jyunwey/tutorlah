@@ -17,6 +17,7 @@ import CreateProfileView from
 import ComingSoonView from
   "../views/ComingSoonView.vue";
 import LoginView from "../views/LoginView.vue";
+import ForgotPasswordView from "../views/ForgotPasswordView.vue";
 
 import { createRouter, createWebHistory } from 'vue-router'
 import { getCurrentRole } from "../services/session.js";
@@ -106,6 +107,11 @@ const router = createRouter({
       path: "/login",
       name: "login",
       component: LoginView,
+    },
+    {
+      path: "/forgot-password",
+      name: "forgot-password",
+      component: ForgotPasswordView,
     },
   ],
 })

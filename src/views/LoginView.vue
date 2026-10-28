@@ -135,7 +135,9 @@ async function handleLogin() {
 
     <form class="login-form" @submit.prevent = "handleLogin">
       <div class="form-field">
-        <label for="email">Email address</label>
+        <label for="email">Email address
+          <span class="required">*</span>
+        </label>
         <input
           id="email"
           v-model.trim="email"
@@ -147,7 +149,9 @@ async function handleLogin() {
       </div>
 
       <div class="form-field">
-        <label for="password">Password</label>
+        <label for="password">Password
+          <span class="required">*</span>
+        </label>
         <div class="password-wrapper">
           <input
             id="password"
@@ -171,14 +175,20 @@ async function handleLogin() {
         </div>
       </div>
 
-      <div class="remember-me">
-        <label>
-          <input
-            type="checkbox"
-            v-model="rememberMe"
-          />
-          <span>Remember me</span>
-        </label>
+      <div class="login-options">
+        <div class="remember-me">
+          <label>
+            <input
+              type="checkbox"
+              v-model="rememberMe"
+            />
+            Remember me
+          </label>
+        </div>
+
+        <RouterLink to="/forgot-password" class="forgot-link">
+          Forgot password?
+        </RouterLink>
       </div>
 
       <button type="submit" 
@@ -193,6 +203,10 @@ async function handleLogin() {
       >
         {{ errorMessage }}
       </p>
+
+      <div class="divider">
+        <span>or</span>
+      </div>
 
       <p class="auth-switch">
         Don't have an account?
@@ -306,15 +320,55 @@ h1 {
   align-items: center;
   gap: 8px;
   cursor: pointer;
-  font-size: 13px;
+  font-size: 14px;
   color: #52658a;
 }
 
 .remember-me input {
-  width: 16px;
-  height: 16px;
+  width: 15px;
+  height: 15px;
   margin: 0;
   accent-color: #00875a;
   cursor: pointer;
+}
+
+.login-options {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.forgot-link {
+  color: #00875a;
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.forgot-link:hover {
+  text-decoration: underline;
+}
+
+.required {
+  color: red;
+  font-weight: 600;
+}
+
+.divider {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin: 12px 0;
+  color: #9ca3af;
+  font-size: 13px;
+}
+
+.divider::before,
+.divider::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background-color: #d5dce5;
 }
 </style>

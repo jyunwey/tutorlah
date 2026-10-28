@@ -115,7 +115,7 @@
 }
 
 .auth-content :deep(.auth-switch) {
-  margin: 20px 0 0;
+  margin: 0 0 0;
   text-align: center;
   font-size: 13px;
   color: #52658a;
