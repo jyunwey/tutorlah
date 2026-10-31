@@ -21,16 +21,19 @@ users/{uid}  (private)
    │                           │ 1:1, same uid
    │ 1:N                       ▼
    ▼                     tutorProfiles/{uid}  (public)
-assignments/{id} ◄──── matches/{id}
-   (posted by student)    (tutor ↔ assignment)
+assignments/{id}
+   (posted by student)
+                         matches/{id}  (student ↔ tutor)
+                            └── messages/{id}
 ```
 
 | Collection      | Doc ID              | Status         | Readable by           | Purpose                                         |
 | --------------- | ------------------- | -------------- | --------------------- | ----------------------------------------------- |
 | `users`         | Firebase Auth `uid` | ✅ Implemented | Owner only            | Private account details + role                  |
 | `tutorProfiles` | Tutor's `uid`       | ✅ Implemented | Any signed-in user    | Public tutor info shown on Find Tutors          |
-| `assignments`   | auto-ID             | 📝 Proposed    | Any signed-in user    | A tuition request posted by a student           |
-| `matches`       | auto-ID             | 📝 Proposed    | The two users in it   | A tutor's application to / pairing with an assignment |
+| `assignments`   | auto-ID             | ✅ Implemented | Any signed-in user    | A tuition request posted by a student           |
+| `matches`       | Fixed ID (see below) | 📝 Proposed   | The two users in it   | A request between a student and a tutor; becomes a match when accepted |
+| `matches/{id}/messages` | auto-ID     | 📝 Proposed    | The two users in it   | Chat messages between matched users             |
 
 ### Public vs private data (NFR-007)
 
@@ -47,7 +50,7 @@ Auth holds credentials only (email, password hash, `emailVerified`). App-specifi
 Firestore under `users/{uid}`, using the same `uid` as the document ID.
 
 - Emails are **trimmed and lowercased** before sign-up, login and password reset.
-- Passwords must be **at least 8 characters** (client-side check).
+- Passwords need **at least 8 characters, 1 uppercase letter and 1 special character** (FR-002, client-side check).
 - A verification email is sent right after registration.
 
 ---
@@ -106,16 +109,6 @@ fields and sets `onboardingComplete` to `true` in the same batch.
 After sign-up, the `users` rules let the owner change the names, `onboardingComplete`,
 `updatedAt` and the fields above. `role`, `email` and `createdAt` still cannot change.
 
-------------- | ---------- | ------- | --------------------------------------------- |
-| `phone`       | string     | both    | Optional; contact detail, so private          |
-| `level`       | string     | student | e.g. `"Secondary"`                            |
-
-Tutors' teaching details go in `tutorProfiles`, not here.
-
-The `users` rules only allow the fields in the first table, and only `firstName`, `lastName`,
-`onboardingComplete` and `updatedAt` can change after sign-up. Adding these profile fields
-needs a matching change to the `users` rules in [firestore.rules](../firestore.rules).
-
 ---
 
 ## `tutorProfiles/{uid}` ✅
@@ -168,7 +161,7 @@ Example:
 
 ---
 
-## `assignments/{assignmentId}` 📝
+## `assignments/{assignmentId}` ✅
 
 A tuition request created by a student. Readable by any signed-in user; only the student who
 posted it can edit or delete it.
@@ -189,20 +182,89 @@ posted it can edit or delete it.
 | `status`              | string    | yes      | `"open"` initially                         |
 | `createdAt`           | timestamp | yes      | Firestore server timestamp                 |
 | `updatedAt`           | timestamp | yes      | Firestore server timestamp                 |
+
+---
+
 ## `matches/{matchId}` 📝
 
-Links a tutor to an assignment. A tutor applying creates a `pending` match; the student accepts
-or rejects it. Only the two users in the match can read or write it (Sprint 2).
+One document per request between a student/parent and a tutor. It starts as a **request**
+(`"pending"`) and becomes a **match** when the person who received it accepts (FR-022).
+Only the two users in it can read it.
 
-| Field          | Type      | Notes                                           |
-| -------------- | --------- | ----------------------------------------------- |
-| `assignmentId` | string    | → `assignments/{id}`                            |
-| `studentId`    | string    | Copied from the assignment, so it can be queried without a join |
-| `tutorId`      | string    | → `users/{uid}` where `role == "tutor"`         |
-| `status`       | string    | `"pending"` → `"accepted"` or `"rejected"`      |
-| `message`      | string    | Optional note from the tutor                    |
-| `createdAt`    | timestamp |                                                 |
-| `updatedAt`    | timestamp |                                                 |
+There are two ways a request is created:
+
+| How                                                  | Requirement | Sender  | Recipient                 | Document ID                |
+| ---------------------------------------------------- | ----------- | ------- | ------------------------- | -------------------------- |
+| Student clicks Apply on a tutor card or Tutor Profile | FR-009     | student | tutor                     | `{studentId}_{tutorId}`    |
+| Tutor clicks Apply on an assignment                  | FR-016      | tutor   | student who posted it     | `{assignmentId}_{tutorId}` |
+
+The document ID is fixed, not auto-generated, so the same person can't apply twice, and the
+Apply button can check whether to show "Applied" with a single `getDoc`.
+
+| Field              | Type      | Required | Notes                                                        |
+| ------------------ | --------- | -------- | ------------------------------------------------------------ |
+| `status`           | string    | yes      | `"pending"` → `"accepted"` or `"rejected"`. Only the recipient can change it |
+| `senderId`         | string    | yes      | UID of who clicked Apply; must be the signed-in user          |
+| `recipientId`      | string    | yes      | UID of who receives the request                              |
+| `studentId`        | string    | yes      | UID of the student/parent (the sender or the recipient)      |
+| `tutorId`          | string    | yes      | UID of the tutor (the sender or the recipient)               |
+| `assignmentId`     | string    | FR-016 only | → `assignments/{id}`; not set for FR-009 requests         |
+| `tutorFirstName`   | string    | yes      | Copied from `tutorProfiles/{tutorId}` (FR-009) or the tutor's own account (FR-016) |
+| `tutorLastName`    | string    | yes      | As above                                                     |
+| `studentFirstName` | string    | see note | Copied from the student's own account                       |
+| `studentLastName`  | string    | see note | As above                                                     |
+| `lastMessage`      | map       | no       | `{ text, senderId, sentAt }` of the newest message; set when a message is sent. Used to sort All Matches and show the preview (FR-023) |
+| `createdAt`        | timestamp | yes      | `serverTimestamp()`; shown as the request date               |
+| `updatedAt`        | timestamp | yes      | `serverTimestamp()`; update on every write                   |
+
+**Why the names are copied here:** users can't read each other's `users` documents (NFR-007),
+so My Matches can't look names up later. The student's name is added by the student: when they
+send the request (FR-009), or when they accept a tutor's application (FR-016), because the
+tutor applying can't see it.
+
+**What each page reads:**
+
+- **Apply button (FR-009, FR-016):** `getDoc(matches/{fixed ID})`. If it exists, show "Applied".
+- **Requests tab (FR-022):** `recipientId == myUid` and `status == "pending"`.
+- **All Matches tab (FR-023):** `studentId == myUid` (students) or `tutorId == myUid` (tutors),
+  and `status == "accepted"`. Sorted by `lastMessage.sentAt`, newest first.
+- **Reject (FR-022):** sets `status` to `"rejected"`, so it leaves the Requests tab. The sender's
+  button stays "Applied", so they can't send the same request again.
+
+Example (FR-009, after the tutor accepted and the student sent a message):
+
+```json
+{
+  "status": "accepted",
+  "senderId": "studentUid123",
+  "recipientId": "tutorUid456",
+  "studentId": "studentUid123",
+  "tutorId": "tutorUid456",
+  "studentFirstName": "Jane",
+  "studentLastName": "Tan",
+  "tutorFirstName": "Rachel",
+  "tutorLastName": "Lim",
+  "lastMessage": {
+    "text": "Great! See you this Wednesday.",
+    "senderId": "studentUid123",
+    "sentAt": "<server timestamp>"
+  },
+  "createdAt": "<server timestamp>",
+  "updatedAt": "<server timestamp>"
+}
+```
+
+### `matches/{matchId}/messages/{messageId}` 📝
+
+Chat messages (FR-024). Only the two users in the match can read or send them, and only once
+the match is `"accepted"` (story 33). Sending a message also updates `lastMessage` and
+`updatedAt` on the match, in the same batch.
+
+| Field      | Type      | Required | Notes                                        |
+| ---------- | --------- | -------- | -------------------------------------------- |
+| `senderId` | string    | yes      | Must be the signed-in user                   |
+| `text`     | string    | yes      | 1 to 1000 characters; no attachments         |
+| `sentAt`   | timestamp | yes      | `serverTimestamp()`                          |
 
 ---
 
@@ -213,8 +275,8 @@ or rejects it. Only the two users in the match can read or write it (Sprint 2).
   Firestore `DocumentReference`s.
 - **Timestamps** always use `serverTimestamp()`, never the client clock.
 - **Enums** (`role`, `status`) are lowercase strings, and only the values listed here are allowed.
-- **Denormalisation**: Firestore has no joins, so a few fields are copied (e.g. `studentId` on
-  `matches`, names on `tutorProfiles`) so that common queries can run as a single query.
+- **Denormalisation**: Firestore has no joins, so a few fields are copied (e.g. names on
+  `tutorProfiles` and `matches`) so that common queries can run as a single query.
 
 ## Security rules
 
@@ -226,6 +288,8 @@ The rules are in [firestore.rules](../firestore.rules). Summary:
   only the listed fields are allowed.
 - `assignments`: any signed-in user can read; only a student can create one, with
   `studentId == request.auth.uid`; only that student can edit or delete it.
-- `matches` and messages: to be added in Sprint 2 (only the two users involved).
+- `matches` and messages (📝 Sprint 2, NFR-006/007): only the student and tutor in a match can
+  read it; only the sender can create a request, as `"pending"`; only the recipient can accept or
+  reject it; messages only once it is `"accepted"`.
 
 Once deployed, any collection without a rule is blocked, so add a rule before using a new one.

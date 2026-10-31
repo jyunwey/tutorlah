@@ -16,6 +16,8 @@ import CreateProfileView from
   "../views/CreateProfileView.vue";
 import ComingSoonView from
   "../views/ComingSoonView.vue";
+import MyMatchesView from
+  "../views/MyMatchesView.vue";
 import LoginView from "../views/LoginView.vue";
 import ForgotPasswordView from "../views/ForgotPasswordView.vue";
 
@@ -86,10 +88,8 @@ const router = createRouter({
     {
       path: "/my-matches",
       name: "my-matches",
-      component: ComingSoonView,
-      meta: { title: "My Matches" ,
-        requiresAuth: true
-      },
+      component: MyMatchesView,
+      meta: { requiresAuth: true },
     },
     {
       path: "/saved",
