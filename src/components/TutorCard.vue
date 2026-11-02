@@ -18,9 +18,17 @@ const props = defineProps({
     type: Number,
     default: null,
   },
+  applied: {
+    type: Boolean,
+    default: false,
+  },
+  isApplying: {
+    type: Boolean,
+    default: false,
+  },
 });
 
-defineEmits(["view-profile"]);
+defineEmits(["view-profile", "apply"]);
 
 const initials = computed(() => getInitials(props.tutor));
 const credentials = computed(() => formatCredentials(props.tutor));
@@ -66,6 +74,14 @@ const credentials = computed(() => formatCredentials(props.tutor));
         View Profile
       </button>
       <!-- The Apply button (FR-009) is added in Sprint 2. -->
+      <button
+        type="button"
+        class="apply-btn"
+        :disabled="applied || isApplying"
+        @click="$emit('apply', tutor)"
+      >
+        {{ applied ? "Applied" : isApplying ? "Applying..." : "Apply" }}
+      </button>
     </div>
   </article>
 </template>
@@ -185,6 +201,31 @@ const credentials = computed(() => formatCredentials(props.tutor));
   outline: 2px solid var(--color-primary);
   outline-offset: 2px;
 }
+
+.actions {
+  display: grid;
+  gap: 10px;
+}
+
+.actions .apply-btn {
+  background: #00875a;
+  color: white;
+  border-color: #00875a;
+  font-weight: 600;
+}
+
+.actions .apply-btn:hover:not(:disabled) {
+  background: #006b47;
+  color: white;
+}
+
+.actions .apply-btn:disabled {
+  background: #e5e7eb;
+  color: #6b7280;
+  border-color: #e5e7eb;
+  cursor: not-allowed;
+}
+
 
 /* Phones: avatar and details on top, then the match ring, then the button. */
 @media (max-width: 640px) {

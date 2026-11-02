@@ -25,6 +25,10 @@ import {
   filtersFromQuery,
   filtersToQuery,
 } from "../utils/filterQuery.js";
+import {
+  checkApplication,
+  requestTutor,
+} from "../services/matches.js";
 
 const route = useRoute();
 const router = useRouter();
@@ -40,6 +44,11 @@ const {
 const tutors = ref([]);
 const isLoading = ref(true);
 const errorMessage = ref("");
+
+const appliedTutorIds = ref([]);
+const applyingTutorIds = ref([]);
+const applicationError = ref("");
+const applicationSuccess = ref("");
 
 // FR-013: the filters live in the URL (e.g. ?subject=Mathematics), so
 // "Back to Results" on the Tutor Profile page brings them back.
@@ -95,6 +104,7 @@ const rankedTutors = computed(() =>
     }))
     .sort((a, b) => (b.compatibility ?? -1) - (a.compatibility ?? -1))
 );
+
 
 // FR-010: a tutor is shown only if they match every filter
 // that is set. An empty filter ("", null or []) matches every tutor.
@@ -154,6 +164,91 @@ function viewProfile(tutorId) {
   });
 }
 
+// FR-009: Apply Function
+async function handleApply(tutor) {
+  if (!user.value || !account.value) {
+    applicationError.value = "Please log in before applying.";
+    return;
+  }
+
+  if (account.value.role !== "student") {
+    applicationError.value =
+      "Only students or parents can request tutors.";
+    return;
+  }
+
+  if (
+    appliedTutorIds.value.includes(tutor.id) ||
+    applyingTutorIds.value.includes(tutor.id)
+  ) {
+    return;
+  }
+
+  applicationError.value = "";
+  applicationSuccess.value = "";
+
+  applyingTutorIds.value.push(tutor.id);
+
+  try {
+    await requestTutor(tutor, account.value);
+
+    appliedTutorIds.value.push(tutor.id);
+
+    applicationSuccess.value =
+      `Your request to ${tutor.firstName} ${tutor.lastName} has been sent!`;
+
+  } catch (error) {
+    console.error("Failed to apply:", error);
+
+    if (error.code === "match/already-exists") {
+      if (!appliedTutorIds.value.includes(tutor.id)) {
+        appliedTutorIds.value.push(tutor.id);
+      }
+
+      applicationError.value =
+        "You have already applied to this tutor.";
+    } else {
+      applicationError.value =
+        "Could not send your request. Please try again.";
+    }
+  } finally {
+    applyingTutorIds.value =
+      applyingTutorIds.value.filter((id) => id !== tutor.id);
+  }
+}
+
+async function loadAppliedTutors() {
+  if (!user.value || account.value?.role !== "student") {
+    appliedTutorIds.value = [];
+    return;
+  }
+
+  const studentId = user.value.uid;
+
+  const results = await Promise.allSettled(
+    tutors.value.map(async (tutor) => {
+      const matchId = `${studentId}_${tutor.id}`;
+      const exists = await checkApplication(matchId);
+
+      return exists ? tutor.id : null;
+    })
+  );
+
+  const failed = results.some(
+    (result) => result.status === "rejected"
+  );
+
+  if (failed) {
+    applicationError.value =
+      "Some application statuses could not be loaded. Please refresh and try again.";
+  }
+
+  appliedTutorIds.value = results
+    .filter((result) => result.status === "fulfilled")
+    .map((result) => result.value)
+    .filter(Boolean);
+}
+
 onMounted(async () => {
   try {
     tutors.value = await fetchTutors();
@@ -164,6 +259,23 @@ onMounted(async () => {
     isLoading.value = false;
   }
 });
+
+watch(
+  [user, account, tutors],
+  async () => {
+    if (
+      !user.value ||
+      !account.value ||
+      tutors.value.length === 0
+    ) {
+      appliedTutorIds.value = [];
+      return;
+    }
+
+    await loadAppliedTutors();
+  },
+  { immediate: true }
+);
 </script>
 
 <template>
@@ -204,6 +316,22 @@ onMounted(async () => {
 
       <!-- FR-008 -->
       <section class="results">
+        <p
+          v-if="applicationSuccess"
+          class="application-message success"
+          role="status"
+        >
+          {{ applicationSuccess }}
+        </p>
+
+        <p
+          v-if="applicationError"
+          class="application-message error"
+          role="alert"
+        >
+          {{ applicationError }}
+        </p>
+
         <p v-if="isLoading || isAccountLoading" class="status">
           Loading tutors...
         </p>
@@ -246,7 +374,10 @@ onMounted(async () => {
               :key="tutor.id"
               :tutor="tutor"
               :compatibility="compatibility"
+              :applied="appliedTutorIds.includes(tutor.id)"
+              :is-applying="applyingTutorIds.includes(tutor.id)"
               @view-profile="viewProfile"
+              @apply="handleApply"
             />
           </div>
         </template>
@@ -364,6 +495,23 @@ onMounted(async () => {
   color: var(--color-error);
 }
 
+.application-message {
+  margin: 0;
+  padding: 12px 16px;
+  border-radius: 8px;
+  font-size: 14px;
+}
+
+.application-message.success {
+  background: #e4fff3;
+  color: #00875a;
+}
+
+.application-message.error {
+  background: #fdecec;
+  color: #c62828;
+}
+
 /* Hidden on wider screens, where the filters are always beside the results. */
 .filters-toggle {
   display: none;
@@ -418,4 +566,5 @@ onMounted(async () => {
     display: none;
   }
 }
+
 </style>
