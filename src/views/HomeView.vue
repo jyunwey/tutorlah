@@ -1,9 +1,17 @@
 <script setup>
-import { computed, watch } from "vue";
+import { computed, ref, watch } from "vue";
 import { RouterLink, useRouter } from "vue-router";
 
 import AppNavBar from "../components/AppNavBar.vue";
+import AssignmentCard from "../components/AssignmentCard.vue";
+import TutorCard from "../components/TutorCard.vue";
 import { useCurrentAccount } from "../composables/useCurrentAccount.js";
+import { fetchAssignments } from "../services/assignments.js";
+import { fetchTutor, fetchTutors } from "../services/tutors.js";
+import {
+  recommendAssignments,
+  recommendTutors,
+} from "../utils/recommendations.js";
 
 const router = useRouter();
 const { user, account, isLoading, errorMessage } = useCurrentAccount();
@@ -78,6 +86,75 @@ const canSeeAll = computed(() =>
     .getRoutes()
     .some((route) => route.path === recommendation.value.seeAllPath),
 );
+
+const recommendations = ref([]);
+const isLoadingRecommendations = ref(false);
+const recommendationError = ref("");
+let recommendationRequest = 0;
+
+watch(
+  account,
+  async (currentAccount) => {
+    const currentRequest = ++recommendationRequest;
+    recommendations.value = [];
+    recommendationError.value = "";
+
+    if (!currentAccount?.onboardingComplete) {
+      isLoadingRecommendations.value = false;
+      return;
+    }
+
+    isLoadingRecommendations.value = true;
+
+    try {
+      const results =
+        currentAccount.role === "tutor"
+          ? await loadAssignmentRecommendations(currentAccount.id)
+          : recommendTutors(await fetchTutors(), currentAccount);
+
+      if (currentRequest === recommendationRequest) {
+        recommendations.value = results;
+      }
+    } catch (error) {
+      if (currentRequest !== recommendationRequest) return;
+      console.error("Could not load recommendations:", error);
+      recommendationError.value =
+        "We could not load your recommendations. Please refresh and try again.";
+    } finally {
+      if (currentRequest === recommendationRequest) {
+        isLoadingRecommendations.value = false;
+      }
+    }
+  },
+  { immediate: true },
+);
+
+async function loadAssignmentRecommendations(tutorId) {
+  const [tutorProfile, assignments] = await Promise.all([
+    fetchTutor(tutorId),
+    fetchAssignments(),
+  ]);
+
+  return recommendAssignments(assignments, tutorProfile);
+}
+
+function openTutorProfile(tutorId) {
+  router.push({ name: "tutor-profile", params: { id: tutorId } });
+}
+
+function openFindAssignments() {
+  router.push({ name: "find-assignments" });
+}
+
+function openRecommendation(event, item) {
+  if (event.target.closest("button, a")) return;
+
+  if (isTutor.value) {
+    openFindAssignments();
+  } else {
+    openTutorProfile(item.id);
+  }
+}
 </script>
 
 <template>
@@ -151,9 +228,55 @@ const canSeeAll = computed(() =>
             </RouterLink>
           </div>
 
-          <div class="empty-state">
+          <p
+            v-if="isLoadingRecommendations"
+            class="recommendations-status"
+            role="status"
+          >
+            Loading recommendations...
+          </p>
+
+          <p
+            v-else-if="recommendationError"
+            class="recommendations-status error"
+            role="alert"
+          >
+            {{ recommendationError }}
+          </p>
+
+          <div v-else-if="recommendations.length === 0" class="empty-state">
             <p class="empty-title">No recommendations yet</p>
             <p>{{ recommendation.emptyText }}</p>
+          </div>
+
+          <div v-else-if="isTutor" class="recommendation-list">
+            <div
+              v-for="{ item, compatibility } in recommendations"
+              :key="item.id"
+              class="recommendation"
+              role="link"
+              tabindex="0"
+              :aria-label="`${item.level} ${item.subject}: open Find Assignments`"
+              @click="openRecommendation($event, item)"
+              @keydown.enter.self="openFindAssignments"
+            >
+              <AssignmentCard :assignment="item" :compatibility="compatibility" />
+            </div>
+          </div>
+
+          <div v-else class="recommendation-list">
+            <div
+              v-for="{ item, compatibility } in recommendations"
+              :key="item.id"
+              class="recommendation"
+              @click="openRecommendation($event, item)"
+            >
+              <TutorCard
+                :tutor="item"
+                :compatibility="compatibility"
+                @view-profile="openTutorProfile"
+              />
+            </div>
           </div>
         </section>
       </main>
@@ -291,6 +414,27 @@ h1 {
 }
 .see-all:hover {
   text-decoration: underline;
+}
+.recommendations-status {
+  margin: 0;
+  padding: 24px 8px;
+  color: var(--color-text-muted, #5b6770);
+}
+.recommendation-list {
+  display: grid;
+  gap: 16px;
+}
+.recommendation {
+  border-radius: var(--radius-card, 14px);
+  cursor: pointer;
+  transition: transform 0.15s ease;
+}
+.recommendation:hover {
+  transform: translateY(-2px);
+}
+.recommendation:focus-visible {
+  outline: 3px solid var(--color-primary, #0f6b4f);
+  outline-offset: 3px;
 }
 .empty-state {
   padding: 36px 24px;

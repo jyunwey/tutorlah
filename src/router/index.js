@@ -22,7 +22,7 @@ import LoginView from "../views/LoginView.vue";
 import ForgotPasswordView from "../views/ForgotPasswordView.vue";
 
 import { createRouter, createWebHistory } from 'vue-router'
-import { getCurrentRole } from "../services/session.js";
+import { getCurrentAccount } from "../services/session.js";
 import { auth } from "../firebase.js";
 
 const router = createRouter({
@@ -129,13 +129,18 @@ router.beforeEach(async (to) => {
     return "/login";
   }
 
-  const allowedRoles = to.meta.roles;
-  if (!allowedRoles) return true;
   try {
-    const role = await getCurrentRole();
-    if (role && !allowedRoles.includes(role)) return "/home";
+    const account = await getCurrentAccount();
+    if (!account) return true;
+
+    if (!account.onboardingComplete && to.name !== "create-profile") {
+      return "/create-profile";
+    }
+
+    const allowedRoles = to.meta.roles;
+    if (allowedRoles && !allowedRoles.includes(account.role)) return "/home";
   } catch (error) {
-    console.error("Could not check role:", error);
+    console.error("Could not check account:", error);
   }
   return true;
 })
