@@ -30,6 +30,68 @@ service cloud.firestore {
         .matches(".*@tutorlah[.]test$");
     }
 
+      match /matches/{matchId} {
+    function hasRequiredIds(data) {
+      return data.keys().hasAll([
+        "senderId",
+        "recipientId",
+        "studentId",
+        "tutorId"
+      ]);
+    }
+
+    function hasValidIdTypes(data) {
+      return data.senderId is string
+        && data.recipientId is string
+        && data.studentId is string
+        && data.tutorId is string;
+    }
+
+    function hasValidParticipants(data) {
+      return hasRequiredIds(data)
+        && hasValidIdTypes(data)
+        && data.studentId != data.tutorId
+        && (
+          (
+            data.senderId == data.studentId
+            && data.recipientId == data.tutorId
+          )
+          ||
+          (
+            data.senderId == data.tutorId
+            && data.recipientId == data.studentId
+          )
+        );
+    }
+
+    function isParticipant(data) {
+      return isSignedIn()
+        && (
+          request.auth.uid == data.studentId
+          || request.auth.uid == data.tutorId
+          || request.auth.uid == data.senderId
+          || request.auth.uid == data.recipientId
+        );
+    }
+
+    allow read: if hasValidParticipants(resource.data)
+      && isParticipant(resource.data);
+
+    allow create: if isSignedIn()
+      && hasValidParticipants(request.resource.data)
+      && request.auth.uid == request.resource.data.senderId;
+
+    allow update: if hasValidParticipants(resource.data)
+      && isParticipant(resource.data)
+      && request.resource.data.senderId == resource.data.senderId
+      && request.resource.data.recipientId == resource.data.recipientId
+      && request.resource.data.studentId == resource.data.studentId
+      && request.resource.data.tutorId == resource.data.tutorId;
+
+    allow delete: if hasValidParticipants(resource.data)
+      && isParticipant(resource.data);
+  }
+
     // Private account details, including contact details.
     match /users/{uid} {
       function hasValidProfileFields() {
