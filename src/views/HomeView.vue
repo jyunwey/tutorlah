@@ -12,6 +12,10 @@ import {
   recommendAssignments,
   recommendTutors,
 } from "../utils/recommendations.js";
+import {
+  checkApplication,
+  requestTutor,
+} from "../services/matches.js";
 
 const router = useRouter();
 const { user, account, isLoading, errorMessage } = useCurrentAccount();
@@ -90,6 +94,17 @@ const canSeeAll = computed(() =>
 const recommendations = ref([]);
 const isLoadingRecommendations = ref(false);
 const recommendationError = ref("");
+
+// FR-009: Application status for recommended tutors
+const appliedTutorIds = ref([]);
+const applyingTutorIds = ref([]);
+const isCheckingApplications = ref(false);
+const applicationStatusError = ref(false);
+const applicationError = ref("");
+const applicationSuccess = ref("");
+
+let applicationCheckId = 0;
+
 let recommendationRequest = 0;
 
 watch(
@@ -136,6 +151,143 @@ async function loadAssignmentRecommendations(tutorId) {
   ]);
 
   return recommendAssignments(assignments, tutorProfile);
+}
+
+// check firestore for existing applications
+async function loadAppliedTutors() {
+  const currentCheck = ++applicationCheckId;
+
+  appliedTutorIds.value = [];
+  applicationStatusError.value = false;
+  applicationError.value = "";
+
+  if (
+    !user.value ||
+    account.value?.role !== "student" ||
+    !account.value.onboardingComplete
+  ) {
+    isCheckingApplications.value = false;
+    return;
+  }
+
+  isCheckingApplications.value = true;
+
+  try {
+    const studentId = user.value.uid;
+
+    const results = await Promise.allSettled(
+      recommendations.value.map(async ({ item }) => {
+        const matchId = `${studentId}_${item.id}`;
+        const exists = await checkApplication(matchId);
+
+        return exists ? item.id : null;
+      })
+    );
+
+    if (currentCheck !== applicationCheckId) return;
+
+    const failed = results.some(
+      (result) => result.status === "rejected"
+    );
+
+    applicationStatusError.value = failed;
+
+    if (failed) {
+      applicationError.value =
+        "Some application statuses could not be loaded. Please refresh and try again.";
+    }
+
+    appliedTutorIds.value = results
+      .filter((result) => result.status === "fulfilled")
+      .map((result) => result.value)
+      .filter(Boolean);
+
+  } catch (error) {
+    if (currentCheck !== applicationCheckId) return;
+
+    console.error("Could not load application statuses:", error);
+
+    applicationStatusError.value = true;
+    applicationError.value =
+      "Could not check application statuses. Please refresh and try again.";
+
+  } finally {
+    if (currentCheck === applicationCheckId) {
+      isCheckingApplications.value = false;
+    }
+  }
+}
+
+watch(
+  [user, account, recommendations],
+  async () => {
+    ++applicationCheckId;
+
+    if (
+      !user.value ||
+      !account.value ||
+      account.value.role !== "student" ||
+      recommendations.value.length === 0
+    ) {
+      appliedTutorIds.value = [];
+      isCheckingApplications.value = false;
+      applicationStatusError.value = false;
+      return;
+    }
+
+    await loadAppliedTutors();
+  },
+  { immediate: true }
+);
+
+async function handleApply(tutor) {
+  if (
+    !user.value ||
+    !account.value ||
+    account.value.role !== "student" ||
+    !account.value.onboardingComplete ||
+    isCheckingApplications.value ||
+    applicationStatusError.value ||
+    appliedTutorIds.value.includes(tutor.id) ||
+    applyingTutorIds.value.includes(tutor.id)
+  ) {
+    return;
+  }
+
+  applicationError.value = "";
+  applicationSuccess.value = "";
+
+  applyingTutorIds.value.push(tutor.id);
+
+  try {
+    await requestTutor(tutor, account.value);
+
+    if (!appliedTutorIds.value.includes(tutor.id)) {
+      appliedTutorIds.value.push(tutor.id);
+    }
+
+    applicationSuccess.value =
+      `Your request to ${tutor.firstName} ${tutor.lastName} has been sent!`;
+
+  } catch (error) {
+    console.error("Failed to apply:", error);
+
+    if (error.code === "match/already-exists") {
+      if (!appliedTutorIds.value.includes(tutor.id)) {
+        appliedTutorIds.value.push(tutor.id);
+      }
+
+      applicationError.value =
+        "You have already applied to this tutor.";
+    } else {
+      applicationError.value =
+        "Could not send your request. Please try again.";
+    }
+
+  } finally {
+    applyingTutorIds.value =
+      applyingTutorIds.value.filter((id) => id !== tutor.id);
+  }
 }
 
 function openTutorProfile(tutorId) {
@@ -229,6 +381,22 @@ function openRecommendation(event, item) {
           </div>
 
           <p
+            v-if="applicationSuccess"
+            class="application-message success"
+            role="status"
+          >
+            {{ applicationSuccess }}
+          </p>
+
+          <p
+            v-if="applicationError"
+            class="application-message error"
+            role="alert"
+          >
+            {{ applicationError }}
+          </p>
+
+          <p
             v-if="isLoadingRecommendations"
             class="recommendations-status"
             role="status"
@@ -274,7 +442,15 @@ function openRecommendation(event, item) {
               <TutorCard
                 :tutor="item"
                 :compatibility="compatibility"
+                :applied="appliedTutorIds.includes(item.id)"
+                :is-applying="applyingTutorIds.includes(item.id)"
+                :disabled="
+                  isCheckingApplications ||
+                  applicationStatusError ||
+                  account?.role !== 'student'
+                "
                 @view-profile="openTutorProfile"
+                @apply="handleApply"
               />
             </div>
           </div>
@@ -454,6 +630,24 @@ h1 {
   font-size: 16px;
   font-weight: 600;
 }
+
+.application-message {
+  margin: 12px 0;
+  padding: 12px 16px;
+  border-radius: 8px;
+  font-size: 14px;
+}
+
+.application-message.success {
+  background: #e4fff3;
+  color: #00875a;
+}
+
+.application-message.error {
+  background: #fdecec;
+  color: #c62828;
+}
+
 a:focus-visible {
   outline: 3px solid var(--color-primary, #0f6b4f);
   outline-offset: 3px;
