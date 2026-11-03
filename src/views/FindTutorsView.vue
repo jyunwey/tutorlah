@@ -50,6 +50,9 @@ const applyingTutorIds = ref([]);
 const applicationError = ref("");
 const applicationSuccess = ref("");
 
+const isCheckingApplications = ref(false);
+const applicationStatusError = ref(false);
+
 // FR-013: the filters live in the URL (e.g. ?subject=Mathematics), so
 // "Back to Results" on the Tutor Profile page brings them back.
 const filters = ref(filtersFromQuery(route.query));
@@ -166,6 +169,14 @@ function viewProfile(tutorId) {
 
 // FR-009: Apply Function
 async function handleApply(tutor) {
+  // don't allow applying while checking existing requests
+  if (
+    isCheckingApplications.value ||
+    applicationStatusError.value
+  ) {
+    return;
+  }
+
   if (!user.value || !account.value) {
     applicationError.value = "Please log in before applying.";
     return;
@@ -220,33 +231,45 @@ async function handleApply(tutor) {
 async function loadAppliedTutors() {
   if (!user.value || account.value?.role !== "student") {
     appliedTutorIds.value = [];
+    isCheckingApplications.value = false;
+    applicationStatusError.value = false;
     return;
   }
 
-  const studentId = user.value.uid;
+  isCheckingApplications.value = true;
+  applicationStatusError.value = false;
 
-  const results = await Promise.allSettled(
-    tutors.value.map(async (tutor) => {
-      const matchId = `${studentId}_${tutor.id}`;
-      const exists = await checkApplication(matchId);
+  try {
+    const studentId = user.value.uid;
 
-      return exists ? tutor.id : null;
-    })
-  );
+    const results = await Promise.allSettled(
+      tutors.value.map(async (tutor) => {
+        const matchId = `${studentId}_${tutor.id}`;
+        const exists = await checkApplication(matchId);
 
-  const failed = results.some(
-    (result) => result.status === "rejected"
-  );
+        return exists ? tutor.id : null;
+      })
+    );
 
-  if (failed) {
-    applicationError.value =
-      "Some application statuses could not be loaded. Please refresh and try again.";
+    const failed = results.some(
+      (result) => result.status === "rejected"
+    );
+
+    applicationStatusError.value = failed;
+
+    if (failed) {
+      applicationError.value =
+        "Some application statuses could not be loaded. Please refresh and try again.";
+    }
+
+    appliedTutorIds.value = results
+      .filter((result) => result.status === "fulfilled")
+      .map((result) => result.value)
+      .filter(Boolean);
+
+  } finally {
+    isCheckingApplications.value = false;
   }
-
-  appliedTutorIds.value = results
-    .filter((result) => result.status === "fulfilled")
-    .map((result) => result.value)
-    .filter(Boolean);
 }
 
 onMounted(async () => {
@@ -376,6 +399,7 @@ watch(
               :compatibility="compatibility"
               :applied="appliedTutorIds.includes(tutor.id)"
               :is-applying="applyingTutorIds.includes(tutor.id)"
+              :disabled="isCheckingApplications || applicationStatusError || account?.role !== 'student'"
               @view-profile="viewProfile"
               @apply="handleApply"
             />

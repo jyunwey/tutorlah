@@ -26,6 +26,10 @@ const props = defineProps({
     type: Boolean,
     default: false,
   },
+  disabled: {
+    type: Boolean,
+    default: false,
+  },
 });
 
 defineEmits(["view-profile", "apply"]);
@@ -77,7 +81,7 @@ const credentials = computed(() => formatCredentials(props.tutor));
       <button
         type="button"
         class="apply-btn"
-        :disabled="applied || isApplying"
+        :disabled="disabled || applied || isApplying"
         @click="$emit('apply', tutor)"
       >
         {{ applied ? "Applied" : isApplying ? "Applying..." : "Apply" }}

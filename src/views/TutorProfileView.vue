@@ -3,6 +3,7 @@ import {
   computed,
   onMounted,
   ref,
+  watch
 } from "vue";
 import {
   RouterLink,
@@ -24,6 +25,10 @@ import {
   getInitials,
   hasRating,
 } from "../utils/tutorDisplay.js";
+import {
+  requestTutor,
+  checkApplication,
+} from "../services/matches.js";
 
 // FR-013: a tutor's public profile. It only reads tutorProfiles,
 // so no email or phone number can appear here (NFR-007).
@@ -34,6 +39,13 @@ const router = useRouter();
 const tutor = ref(null);
 const isLoading = ref(true);
 const errorMessage = ref("");
+
+const applied = ref(false);
+const isApplying = ref(false);
+const isCheckingApplication = ref(true);
+const applicationError = ref("");
+const applicationSuccess = ref("");
+const applicationStatusError = ref(false);
 
 // Vue Router remembers the previous page. If it was Find Tutors, "Back to
 // Results" returns to that exact URL, so the filters are still applied.
@@ -46,7 +58,7 @@ const resultsPath =
 
 // The signed-in user's account, for the navigation bar (FR-005) and,
 // for students, the preferences saved in Create Profile (FR-026).
-const { account } = useCurrentAccount();
+const { user, account } = useCurrentAccount();
 
 // Same filters and preferences as the results page,
 // so the match % is the same as on the tutor's card (FR-011).
@@ -63,6 +75,103 @@ const compatibility = computed(() => {
   return getCompatibility(tutor.value, buildCriteria(filters, preferences));
 });
 
+async function handleApply() {
+  if (
+    !user.value ||
+    !account.value ||
+    !tutor.value ||
+    applied.value ||
+    isApplying.value ||
+    isCheckingApplication.value ||
+    applicationStatusError.value 
+  ) {
+    return;
+  }
+
+  if (account.value.role !== "student") {
+    applicationError.value =
+      "Only students or parents can request tutors.";
+    return;
+  }
+
+  applicationError.value = "";
+  applicationSuccess.value = "";
+  isApplying.value = true;
+
+  try {
+    await requestTutor(tutor.value, account.value);
+
+    applied.value = true;
+    applicationSuccess.value =
+      "Your request has been sent successfully!";
+  } catch (error) {
+    console.error("Failed to request tutor:", error);
+
+    if (error.code === "match/already-exists") {
+      applied.value = true;
+      applicationError.value =
+        "You have already applied to this tutor.";
+    } else {
+      applicationError.value =
+        "Could not send your request. Please try again.";
+    }
+  } finally {
+    isApplying.value = false;
+  }
+}
+
+// check whether the user has already applied, and prevents failed status check and overlapping requests
+let applicationCheckId = 0;
+
+watch(
+  [user, account, tutor],
+  async () => {
+    const currentCheck = ++applicationCheckId;
+
+    applied.value = false;
+    applicationError.value = "";
+    applicationStatusError.value = false;
+
+    if (
+      !user.value ||
+      !account.value ||
+      !tutor.value ||
+      account.value.role !== "student"
+    ) {
+      isCheckingApplication.value = false;
+      return;
+    }
+
+    isCheckingApplication.value = true;
+
+    try {
+      const matchId = `${user.value.uid}_${tutor.value.id}`;
+
+      const exists = await checkApplication(matchId);
+
+      // Ignore outdated requests
+      if (currentCheck !== applicationCheckId) return;
+
+      applied.value = exists;
+
+    } catch (error) {
+      if (currentCheck !== applicationCheckId) return;
+
+      console.error("Could not check application:", error);
+
+      applicationStatusError.value = true;
+      applicationError.value =
+        "Could not check your application status. Please refresh and try again.";
+
+    } finally {
+      if (currentCheck === applicationCheckId) {
+        isCheckingApplication.value = false;
+      }
+    }
+  },
+  { immediate: true }
+);
+
 // Icon outlines (24x24) for the detail rows, matching the prototype.
 const ICON_PATHS = {
   qualification: "M22 10 12 5 2 10l10 5 10-5Z M6 12v5c3 2 9 2 12 0v-5",
@@ -76,6 +185,7 @@ const ICON_PATHS = {
 };
 
 const detailRows = computed(() => {
+  if (!tutor.value) return [];
   const { levels, subjects, hourlyRate, location, lessonModes } = tutor.value;
 
   return [
@@ -167,6 +277,43 @@ onMounted(async () => {
         </header>
 
         <!-- The Apply button (FR-009) goes here in Sprint 2. -->
+        <div
+          v-if="account?.role === 'student'"
+          class="apply-section"
+        >
+          <button
+            type="button"
+            class="apply-btn"
+            :disabled="applied || isApplying || isCheckingApplication || applicationStatusError"
+            @click="handleApply"
+          >
+            {{
+              applied
+                ? "Applied"
+                : isApplying
+                  ? "Applying..."
+                  : isCheckingApplication
+                    ? "Checking..."
+                    : "Apply"
+            }}
+          </button>
+
+          <p
+            v-if="applicationSuccess"
+            class="application-message success"
+            role="status"
+          >
+            {{ applicationSuccess }}
+          </p>
+
+          <p
+            v-if="applicationError"
+            class="application-message error"
+            role="alert"
+          >
+            {{ applicationError }}
+          </p>
+        </div>
 
         <ul class="tags">
           <li v-for="style in tutor.teachingStyles" :key="style">
@@ -424,6 +571,50 @@ onMounted(async () => {
 
 .error {
   color: var(--color-error);
+}
+
+.apply-section {
+  display: grid;
+  gap: 12px;
+}
+
+.apply-btn {
+  width: 100%;
+  padding: 14px 20px;
+  border: none;
+  border-radius: var(--radius-control);
+  background: var(--color-primary);
+  color: white;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.apply-btn:hover:not(:disabled) {
+  background: var(--color-primary-dark);
+}
+
+.apply-btn:disabled {
+  background: #e5e7eb;
+  color: #6b7280;
+  cursor: not-allowed;
+}
+
+.application-message {
+  margin: 0;
+  padding: 12px 16px;
+  border-radius: 8px;
+  font-size: 14px;
+}
+
+.application-message.success {
+  background: #e4fff3;
+  color: #00875a;
+}
+
+.application-message.error {
+  background: #fdecec;
+  color: #c62828;
 }
 
 /* Phones: avatar and match ring side by side, details underneath. */
