@@ -1,13 +1,25 @@
 <script setup>
-import AppNavBar from "../components/AppNavBar.vue";
-import { reactive, ref } from 'vue'
-import { useRouter } from 'vue-router'
+import {
+  reactive,
+  ref,
+} from 'vue'
+import {
+  useRouter,
+} from 'vue-router'
 
+import AppNavBar from '../components/AppNavBar.vue'
+import {
+  useCurrentAccount,
+} from '../composables/useCurrentAccount.js'
 import {
   createAssignment,
 } from '../services/assignments.js'
 
 const router = useRouter()
+
+const {
+  account,
+} = useCurrentAccount()
 
 const form = reactive({
   subject: '',
@@ -157,13 +169,18 @@ function handleCancel() {
 <template>
   <main class="post-assignment-page">
     <div class="page-nav">
-      <AppNavBar />
+      <AppNavBar :account="account" />
     </div>
-    <h1>Post a Tuition Assignment</h1>
 
-    <p>
-      Enter your tuition requirements below.
-    </p>
+    <header class="page-header">
+      <h1>
+        Post a Tuition Assignment
+      </h1>
+
+      <p>
+        Enter your tuition requirements below.
+      </p>
+    </header>
 
     <form
         class="assignment-form"
@@ -517,50 +534,63 @@ function handleCancel() {
     </form>
   </main>
 </template>
-<style scoped>
-.page-nav {
-  margin-bottom: 32px;
-}
 
+<style scoped>
 .post-assignment-page {
   min-height: 100vh;
-  padding: 48px 20px;
+  padding: 24px 20px 48px;
   box-sizing: border-box;
-  color: #111111;
-  background: #f4f4f4;
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-family: var(--font-sans);
 }
 
-.post-assignment-page > h1,
-.post-assignment-page > p,
+.page-nav {
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto 32px;
+}
+
+.page-header,
 .assignment-form {
   width: 100%;
-  max-width: 900px;
+  max-width: 1000px;
   margin-right: auto;
   margin-left: auto;
 }
 
-.post-assignment-page > h1 {
-  margin-top: 0;
-  margin-bottom: 8px;
-  font-size: 36px;
+.page-header {
+  margin-bottom: 28px;
 }
 
-.post-assignment-page > p {
-  margin-top: 0;
-  margin-bottom: 28px;
-  color: #555555;
+.page-header h1,
+.page-header p {
+  margin: 0;
+}
+
+.page-header h1 {
+  font-size: 2.5rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+.page-header p {
+  margin-top: 8px;
+  color: var(--color-text-muted);
+  font-size: 1.1rem;
 }
 
 .assignment-form {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns:
+    repeat(2, minmax(0, 1fr));
   gap: 24px;
   padding: 32px;
   box-sizing: border-box;
-  background: white;
-  border: 1px solid #cccccc;
-  border-radius: 12px;
-  box-shadow: 0 8px 24px rgb(0 0 0 / 8%);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-card);
 }
 
 .assignment-form > div {
@@ -575,6 +605,7 @@ function handleCancel() {
 }
 
 label {
+  color: var(--color-text);
   font-weight: 600;
 }
 
@@ -582,24 +613,40 @@ input,
 select,
 textarea {
   width: 100%;
-  padding: 12px;
+  padding: 12px 14px;
   box-sizing: border-box;
-  color: black;
-  background: white;
-  border: 1px solid #999999;
-  border-radius: 6px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-control);
+  background: var(--color-surface);
+  color: var(--color-text);
   font: inherit;
+  transition:
+    border-color 150ms ease,
+    box-shadow 150ms ease;
+}
+
+input:hover,
+select:hover,
+textarea:hover {
+  border-color: var(--color-text-muted);
 }
 
 input:focus,
 select:focus,
 textarea:focus {
-  border-color: black;
-  outline: 2px solid #dddddd;
+  border-color: var(--color-primary);
+  outline: none;
+  box-shadow:
+    0 0 0 3px
+    color-mix(
+      in srgb,
+      var(--color-primary) 18%,
+      transparent
+    );
 }
 
 textarea {
-  min-height: 120px;
+  min-height: 130px;
   resize: vertical;
 }
 
@@ -610,16 +657,25 @@ textarea {
   gap: 12px;
   margin-top: 8px;
   padding-top: 24px;
-  border-top: 1px solid #dddddd;
+  border-top: 1px solid var(--color-border);
 }
 
 button {
-  min-width: 140px;
+  min-width: 150px;
   padding: 12px 20px;
-  border-radius: 6px;
+  border-radius: var(--radius-control);
   font: inherit;
-  font-weight: 600;
+  font-weight: 700;
   cursor: pointer;
+  transition:
+    background 150ms ease,
+    border-color 150ms ease,
+    transform 150ms ease;
+}
+
+button:focus-visible {
+  outline: 3px solid var(--color-primary);
+  outline-offset: 3px;
 }
 
 button:disabled {
@@ -628,68 +684,85 @@ button:disabled {
 }
 
 .cancel-button {
-  color: black;
-  background: white;
-  border: 1px solid black;
+  border: 1px solid var(--color-primary);
+  background: var(--color-surface);
+  color: var(--color-primary);
 }
 
-.cancel-button:hover {
-  background: #eeeeee;
+.cancel-button:not(:disabled):hover {
+  background: var(--color-primary-light);
 }
 
 .submit-button {
+  border: 1px solid var(--color-primary);
+  background: var(--color-primary);
   color: white;
-  background: black;
-  border: 1px solid black;
 }
 
-.submit-button:hover {
-  background: #333333;
+.submit-button:not(:disabled):hover {
+  border-color: var(--color-primary-dark);
+  background: var(--color-primary-dark);
+  transform: translateY(-1px);
 }
 
 [aria-invalid='true'] {
-  border-color: black;
-  outline: 2px solid #999999;
+  border-color: var(--color-error);
+  box-shadow:
+    0 0 0 2px
+    color-mix(
+      in srgb,
+      var(--color-error) 15%,
+      transparent
+    );
 }
 
 .field-error {
   margin: 0;
-  color: black;
-  font-size: 13px;
+  color: var(--color-error);
+  font-size: 0.82rem;
   font-weight: 600;
 }
 
 .form-message {
   grid-column: 1 / -1;
   margin: 0;
-  padding: 12px;
-  border: 1px solid black;
-  border-radius: 6px;
+  padding: 13px 15px;
+  border-radius: var(--radius-control);
+  font-weight: 600;
 }
 
 .form-message.error {
-  background: #eeeeee;
+  border: 1px solid var(--color-error);
+  background: #fdf1ef;
+  color: var(--color-error);
 }
 
 .form-message.success {
-  background: white;
+  border: 1px solid var(--color-primary);
+  background: var(--color-primary-light);
+  color: var(--color-primary-dark);
 }
 
 @media (max-width: 700px) {
   .post-assignment-page {
-    padding: 28px 14px;
+    padding: 16px 14px 36px;
   }
 
-  .post-assignment-page > h1 {
-    font-size: 30px;
+  .page-nav {
+    margin-bottom: 24px;
+  }
+
+  .page-header h1 {
+    font-size: 2rem;
   }
 
   .assignment-form {
     grid-template-columns: 1fr;
-    padding: 22px 18px;
+    padding: 24px 18px;
   }
 
   .assignment-form > div:last-of-type,
+  .form-message,
   .form-actions {
     grid-column: auto;
   }
