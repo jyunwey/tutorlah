@@ -33,8 +33,7 @@ import {
 const route = useRoute();
 const router = useRouter();
 
-// The signed-in user's account, for the navigation bar (FR-005) and,
-// for students, the preferences saved in Create Profile (FR-026).
+// Signed-in user's account for navigation and matching preferences.
 const {
   user,
   account,
@@ -167,7 +166,7 @@ function viewProfile(tutorId) {
   });
 }
 
-// FR-009: Apply Function
+// FR-020: student requests a tutor
 async function handleApply(tutor) {
   // don't allow applying while checking existing requests
   if (
@@ -211,17 +210,9 @@ async function handleApply(tutor) {
   } catch (error) {
     console.error("Failed to apply:", error);
 
-    if (error.code === "match/already-exists") {
-      if (!appliedTutorIds.value.includes(tutor.id)) {
-        appliedTutorIds.value.push(tutor.id);
-      }
+    applicationError.value =
+      "Could not send your request. Please try again.";
 
-      applicationError.value =
-        "You have already applied to this tutor.";
-    } else {
-      applicationError.value =
-        "Could not send your request. Please try again.";
-    }
   } finally {
     applyingTutorIds.value =
       applyingTutorIds.value.filter((id) => id !== tutor.id);
