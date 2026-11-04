@@ -4,7 +4,7 @@ import {
   TIME_SLOTS,
 } from '../constants/assignmentFilters.js'
 
-defineProps({
+const props = defineProps({
   assignment: {
     type: Object,
     required: true,
@@ -14,7 +14,34 @@ defineProps({
     type: Number,
     default: null,
   },
+
+  // FR-021: Application button state
+  applied: {
+    type: Boolean,
+    default: false,
+  },
+
+  isApplying: {
+    type: Boolean,
+    default: false,
+  },
+
+  disabled: {
+    type: Boolean,
+    default: false,
+  },
+
+  showApply: {
+    type: Boolean,
+    default: false,
+  },
 })
+
+const emit = defineEmits(['apply'])
+
+function handleApply() {
+  emit('apply', props.assignment)
+} 
 
 function displayValue(value) {
   return value || 'Not specified'
@@ -145,12 +172,28 @@ function formatPostedDate(timestamp) {
     </div>
 
     <div class="match-section">
-      <span>Match</span>
-
+    
       <MatchRing
         :value="compatibility"
         :size="82"
       />
+
+      <!-- FR-021: Apply for assignment -->
+      <button
+        v-if="showApply"
+        type="button"
+        class="apply-btn"
+        :disabled="applied || isApplying || disabled"
+        @click.stop="handleApply"
+      >
+        {{
+          applied
+            ? 'Applied'
+            : isApplying
+              ? 'Applying...'
+              : 'Apply'
+        }}
+      </button>
     </div>
   </article>
 </template>
@@ -280,18 +323,36 @@ function formatPostedDate(timestamp) {
 }
 
 .match-section {
-  display: grid;
-  justify-items: center;
-  align-content: center;
-  gap: 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
   padding-left: 20px;
   border-left: 1px solid var(--color-border);
 }
 
-.match-section > span {
-  color: var(--color-text-muted);
-  font-size: 0.8rem;
+.apply-btn {
+  width: 110px;
+  padding: 10px 16px;
+  border: none;
+  border-radius: var(--radius-control);
+  background: var(--color-primary);
+  color: white;
+  font: inherit;
   font-weight: 600;
+  cursor: pointer;
+  margin-top: 30px;
+}
+
+.apply-btn:hover:not(:disabled) {
+  background: var(--color-primary-dark);
+}
+
+.apply-btn:disabled {
+  background: #e5e7eb;
+  color: #6b7280;
+  cursor: not-allowed;
 }
 
 @media (max-width: 700px) {

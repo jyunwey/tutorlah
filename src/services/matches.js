@@ -82,6 +82,49 @@ export async function requestTutor(tutor, studentAccount) {
   return matchId;
 }
 
+// FR-021: Tutor applies for an assignment
+export async function requestAssignment(assignment, tutorAccount) {
+  const user = auth.currentUser;
+
+  if (!user) {
+    throw new Error("Please log in before applying.");
+  }
+
+  if (tutorAccount?.role !== "tutor") {
+    throw new Error("Only tutors can apply for assignments.");
+  }
+
+  if (!tutorAccount.onboardingComplete) {
+    throw new Error("Please complete your profile before applying.");
+  }
+
+  if (!assignment?.id || !assignment?.studentId) {
+    throw new Error("Invalid assignment.");
+  }
+
+  if (assignment.studentId === user.uid) {
+    throw new Error("You cannot apply to your own assignment.");
+  }
+
+  const matchId = `${assignment.id}_${user.uid}`;
+  const matchRef = doc(db, "matches", matchId);
+
+  await setDoc(matchRef, {
+    status: "pending",
+    senderId: user.uid,
+    recipientId: assignment.studentId,
+    studentId: assignment.studentId,
+    tutorId: user.uid,
+    assignmentId: assignment.id,
+    tutorFirstName: tutorAccount.firstName,
+    tutorLastName: tutorAccount.lastName,
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+  });
+
+  return matchId;
+}
+
 // FR-022: requests sent to me that I haven't answered yet, kept up to
 // date as they arrive or change. Returns a function that stops listening.
 // Sorted on the page instead of here, so Firestore needs no extra index.

@@ -13,9 +13,10 @@ import {
   recommendTutors,
 } from "../utils/recommendations.js";
 import {
-  checkApplication,
+  fetchSentRequests,
   requestTutor,
 } from "../services/matches.js";
+
 
 const router = useRouter();
 const { user, account, isLoading, errorMessage } = useCurrentAccount();
@@ -95,7 +96,7 @@ const recommendations = ref([]);
 const isLoadingRecommendations = ref(false);
 const recommendationError = ref("");
 
-// FR-009: Application status for recommended tutors
+// FR-020: Application status for recommended tutors
 const appliedTutorIds = ref([]);
 const applyingTutorIds = ref([]);
 const isCheckingApplications = ref(false);
@@ -104,7 +105,6 @@ const applicationError = ref("");
 const applicationSuccess = ref("");
 
 let applicationCheckId = 0;
-
 let recommendationRequest = 0;
 
 watch(
@@ -153,7 +153,7 @@ async function loadAssignmentRecommendations(tutorId) {
   return recommendAssignments(assignments, tutorProfile);
 }
 
-// check firestore for existing applications
+// FR-020: Load tutors the student has already requested
 async function loadAppliedTutors() {
   const currentCheck = ++applicationCheckId;
 
@@ -173,34 +173,18 @@ async function loadAppliedTutors() {
   isCheckingApplications.value = true;
 
   try {
-    const studentId = user.value.uid;
-
-    const results = await Promise.allSettled(
-      recommendations.value.map(async ({ item }) => {
-        const matchId = `${studentId}_${item.id}`;
-        const exists = await checkApplication(matchId);
-
-        return exists ? item.id : null;
-      })
-    );
+    const sentRequests = await fetchSentRequests();
 
     if (currentCheck !== applicationCheckId) return;
 
-    const failed = results.some(
-      (result) => result.status === "rejected"
-    );
-
-    applicationStatusError.value = failed;
-
-    if (failed) {
-      applicationError.value =
-        "Some application statuses could not be loaded. Please refresh and try again.";
-    }
-
-    appliedTutorIds.value = results
-      .filter((result) => result.status === "fulfilled")
-      .map((result) => result.value)
-      .filter(Boolean);
+    appliedTutorIds.value = sentRequests
+      .filter(
+        (match) =>
+          match.senderId === user.value.uid &&
+          match.studentId === user.value.uid &&
+          !match.assignmentId
+      )
+      .map((match) => match.tutorId);
 
   } catch (error) {
     if (currentCheck !== applicationCheckId) return;
@@ -219,27 +203,14 @@ async function loadAppliedTutors() {
 }
 
 watch(
-  [user, account, recommendations],
+  [user, account],
   async () => {
-    ++applicationCheckId;
-
-    if (
-      !user.value ||
-      !account.value ||
-      account.value.role !== "student" ||
-      recommendations.value.length === 0
-    ) {
-      appliedTutorIds.value = [];
-      isCheckingApplications.value = false;
-      applicationStatusError.value = false;
-      return;
-    }
-
     await loadAppliedTutors();
   },
   { immediate: true }
 );
 
+// FR-020: Apply to a recommended tutor
 async function handleApply(tutor) {
   if (
     !user.value ||
@@ -272,17 +243,8 @@ async function handleApply(tutor) {
   } catch (error) {
     console.error("Failed to apply:", error);
 
-    if (error.code === "match/already-exists") {
-      if (!appliedTutorIds.value.includes(tutor.id)) {
-        appliedTutorIds.value.push(tutor.id);
-      }
-
-      applicationError.value =
-        "You have already applied to this tutor.";
-    } else {
-      applicationError.value =
-        "Could not send your request. Please try again.";
-    }
+    applicationError.value =
+      "Could not send your request. Please try again.";
 
   } finally {
     applyingTutorIds.value =
@@ -374,27 +336,26 @@ function openRecommendation(event, item) {
 
         <section class="recommended" aria-labelledby="recommended-title">
           <div class="section-heading">
+            <p
+              v-if="applicationSuccess && !isTutor"
+              class="recommendations-status"
+              role="status"
+            >
+              {{ applicationSuccess }}
+            </p>
+
+            <p
+              v-if="applicationError && !isTutor"
+              class="recommendations-status error"
+              role="alert"
+            >
+              {{ applicationError }}
+            </p>
             <h2 id="recommended-title">{{ recommendation.title }}</h2>
             <RouterLink v-if="canSeeAll" :to="recommendation.seeAllPath" class="see-all">
               See All
             </RouterLink>
           </div>
-
-          <p
-            v-if="applicationSuccess"
-            class="application-message success"
-            role="status"
-          >
-            {{ applicationSuccess }}
-          </p>
-
-          <p
-            v-if="applicationError"
-            class="application-message error"
-            role="alert"
-          >
-            {{ applicationError }}
-          </p>
 
           <p
             v-if="isLoadingRecommendations"
@@ -598,6 +559,7 @@ h1 {
 }
 .recommendation-list {
   display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 16px;
 }
 .recommendation {
@@ -630,24 +592,6 @@ h1 {
   font-size: 16px;
   font-weight: 600;
 }
-
-.application-message {
-  margin: 12px 0;
-  padding: 12px 16px;
-  border-radius: 8px;
-  font-size: 14px;
-}
-
-.application-message.success {
-  background: #e4fff3;
-  color: #00875a;
-}
-
-.application-message.error {
-  background: #fdecec;
-  color: #c62828;
-}
-
 a:focus-visible {
   outline: 3px solid var(--color-primary, #0f6b4f);
   outline-offset: 3px;
