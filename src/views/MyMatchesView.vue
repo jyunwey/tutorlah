@@ -9,15 +9,20 @@ import MatchRequestList from "../components/MatchRequestList.vue";
 import { useCurrentAccount } from "../composables/useCurrentAccount.js";
 import { createSampleData } from "../constants/sampleMatches.js";
 import {
+  acceptMatchRequest,
+  listenToIncomingRequests,
+  rejectMatchRequest,
+} from "../services/matches.js";
+import {
   getFullName,
   getOtherUser,
   toDate,
 } from "../utils/matchDisplay.js";
 
 // My Matches (FR-021 to FR-024).
-// SKELETON: uses temporary sample data. Accept, Reject and Send only
-// change what's on screen; nothing is saved yet. The next step loads
-// and saves the `matches` collection in Firestore instead.
+// The Requests tab (FR-022) loads and saves the `matches` collection in
+// Firestore. All Matches and the chat (FR-023, FR-024) still use
+// temporary sample data, and Send only changes what's on screen.
 
 const route = useRoute();
 const router = useRouter();
@@ -33,12 +38,22 @@ const myId = computed(() => user.value?.uid ?? "");
 
 // `matches` documents (docs/data-model.md): one per request,
 // "pending" -> "accepted" or "rejected".
+// Requests sent to me that I haven't answered, from Firestore (FR-022).
+const requestDocs = ref([]);
+const isLoadingRequests = ref(true);
+const requestsError = ref("");
+// The request being accepted or rejected, so its buttons can't be
+// clicked twice.
+const respondingId = ref(null);
+
+// Accepted matches (SAMPLE DATA until FR-023 loads them from Firestore).
 const matchDocs = ref([]);
-// Messages for each match, keyed by match ID.
+// Messages for each match, keyed by match ID (SAMPLE DATA, FR-024).
 const messagesByMatch = ref({});
 
 const selectedId = ref(null);
 const statusMessage = ref("");
+const statusIsError = ref(false);
 
 // FR-021: All Matches is open by default. The tab is kept in the URL
 // (?tab=requests) so a refresh stays on the same tab.
@@ -55,14 +70,45 @@ function withOtherUser(match) {
   return { ...match, otherUser: getOtherUser(match, myId.value) };
 }
 
-// FR-022: only requests sent to me that I haven't answered.
+// FR-022: newest request first.
 const requests = computed(() =>
-  matchDocs.value
-    .filter(
-      (match) => match.status === "pending" && match.recipientId === myId.value
-    )
+  [...requestDocs.value]
     .sort((a, b) => toDate(b.createdAt) - toDate(a.createdAt))
     .map(withOtherUser)
+);
+
+// FR-022: listen for requests sent to me. New requests appear, and
+// answered ones disappear, without refreshing the page.
+watch(
+  myId,
+  (userId, _previousId, onCleanup) => {
+    requestDocs.value = [];
+    requestsError.value = "";
+
+    if (!userId) {
+      return;
+    }
+
+    isLoadingRequests.value = true;
+
+    const stopListening = listenToIncomingRequests(
+      userId,
+      (docs) => {
+        requestDocs.value = docs;
+        isLoadingRequests.value = false;
+      },
+      (error) => {
+        console.error("Could not load requests:", error);
+        requestsError.value =
+          "We could not load your requests. Please refresh and try again.";
+        isLoadingRequests.value = false;
+      }
+    );
+
+    // Stops listening when the user changes or the page closes.
+    onCleanup(stopListening);
+  },
+  { immediate: true }
 );
 
 // FR-023: most recent message first.
@@ -105,27 +151,41 @@ function findMatch(id) {
   return matchDocs.value.find((match) => match.id === id);
 }
 
-// FR-022: Accept moves the request to All Matches.
-function acceptRequest(id) {
-  const match = findMatch(id);
-  match.status = "accepted";
-
-  // A tutor applying to an assignment (FR-016) can't see the student's
-  // name, so the student adds it when accepting (docs/data-model.md).
-  if (account.value.role === "student") {
-    match.studentFirstName = account.value.firstName;
-    match.studentLastName = account.value.lastName;
-  }
-
-  messagesByMatch.value[id] = [];
-  statusMessage.value = `You matched with ${getFullName(getOtherUser(match, myId.value))}. You can now chat in All Matches.`;
+function showStatus(message, isError = false) {
+  statusMessage.value = message;
+  statusIsError.value = isError;
 }
 
-// FR-022: Reject removes the request.
-function rejectRequest(id) {
-  const match = findMatch(id);
-  match.status = "rejected";
-  statusMessage.value = `Request from ${getFullName(getOtherUser(match, myId.value))} rejected.`;
+// FR-022: Accept or Reject saves the answer in Firestore. The request then
+// leaves this tab by itself, because the listener only shows pending ones.
+async function respondToRequest(id, accept) {
+  const request = requests.value.find((item) => item.id === id);
+
+  if (!request || respondingId.value) {
+    return;
+  }
+
+  const name = getFullName(request.otherUser);
+  respondingId.value = id;
+  showStatus("");
+
+  try {
+    if (accept) {
+      await acceptMatchRequest(id, account.value);
+      showStatus(`You matched with ${name}. You can now chat in All Matches.`);
+    } else {
+      await rejectMatchRequest(id);
+      showStatus(`Request from ${name} rejected.`);
+    }
+  } catch (error) {
+    console.error("Could not answer request:", error);
+    showStatus(
+      `We could not ${accept ? "accept" : "reject"} the request from ${name}. Please try again.`,
+      true
+    );
+  } finally {
+    respondingId.value = null;
+  }
 }
 
 // FR-024: add the message and update the list preview.
@@ -148,7 +208,7 @@ function sendMessage(text) {
 
 // Clear the status message when switching tabs.
 watch(activeTab, () => {
-  statusMessage.value = "";
+  showStatus("");
 });
 </script>
 
@@ -188,7 +248,7 @@ watch(activeTab, () => {
             aria-controls="panel-requests"
             @click="openTab('requests')"
           >
-            Requests ({{ requests.length }})
+            Requests{{ isLoadingRequests ? "" : ` (${requests.length})` }}
           </button>
           <button
             id="tab-matches"
@@ -204,7 +264,12 @@ watch(activeTab, () => {
           </button>
         </div>
 
-        <p v-if="statusMessage" class="status-message" role="status">
+        <p
+          v-if="statusMessage"
+          class="status-message"
+          :class="{ error: statusIsError }"
+          :role="statusIsError ? 'alert' : 'status'"
+        >
           {{ statusMessage }}
         </p>
 
@@ -214,11 +279,19 @@ watch(activeTab, () => {
           role="tabpanel"
           aria-labelledby="tab-requests"
         >
+          <p v-if="isLoadingRequests" class="status">Loading requests...</p>
+
+          <p v-else-if="requestsError" class="status error" role="alert">
+            {{ requestsError }}
+          </p>
+
           <MatchRequestList
+            v-else
             :requests="requests"
             :viewer-role="account?.role"
-            @accept="acceptRequest"
-            @reject="rejectRequest"
+            :responding-id="respondingId"
+            @accept="respondToRequest($event, true)"
+            @reject="respondToRequest($event, false)"
           />
         </div>
 
@@ -328,6 +401,11 @@ watch(activeTab, () => {
   background: var(--color-primary-light);
   color: var(--color-primary-dark);
   font-weight: 500;
+}
+
+.status-message.error {
+  background: #fdecea;
+  color: var(--color-error);
 }
 
 /* All Matches: list on the left, chat on the right. */

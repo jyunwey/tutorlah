@@ -26,15 +26,14 @@ import {
   filtersToQuery,
 } from "../utils/filterQuery.js";
 import {
-  checkApplication,
+  fetchSentRequests,
   requestTutor,
 } from "../services/matches.js";
 
 const route = useRoute();
 const router = useRouter();
 
-// The signed-in user's account, for the navigation bar (FR-005) and,
-// for students, the preferences saved in Create Profile (FR-026).
+// Signed-in user's account for navigation and matching preferences.
 const {
   user,
   account,
@@ -167,7 +166,7 @@ function viewProfile(tutorId) {
   });
 }
 
-// FR-009: Apply Function
+// FR-020: student requests a tutor
 async function handleApply(tutor) {
   // don't allow applying while checking existing requests
   if (
@@ -211,23 +210,16 @@ async function handleApply(tutor) {
   } catch (error) {
     console.error("Failed to apply:", error);
 
-    if (error.code === "match/already-exists") {
-      if (!appliedTutorIds.value.includes(tutor.id)) {
-        appliedTutorIds.value.push(tutor.id);
-      }
+    applicationError.value =
+      "Could not send your request. Please try again.";
 
-      applicationError.value =
-        "You have already applied to this tutor.";
-    } else {
-      applicationError.value =
-        "Could not send your request. Please try again.";
-    }
   } finally {
     applyingTutorIds.value =
       applyingTutorIds.value.filter((id) => id !== tutor.id);
   }
 }
 
+// FR-020: Load tutors the student has already requested
 async function loadAppliedTutors() {
   if (!user.value || account.value?.role !== "student") {
     appliedTutorIds.value = [];
@@ -240,32 +232,22 @@ async function loadAppliedTutors() {
   applicationStatusError.value = false;
 
   try {
-    const studentId = user.value.uid;
+    const sentRequests = await fetchSentRequests();
 
-    const results = await Promise.allSettled(
-      tutors.value.map(async (tutor) => {
-        const matchId = `${studentId}_${tutor.id}`;
-        const exists = await checkApplication(matchId);
+    appliedTutorIds.value = sentRequests
+      .filter((match) =>
+        match.studentId === user.value.uid &&
+        match.senderId === user.value.uid &&
+        !match.assignmentId
+      )
+      .map((match) => match.tutorId);
 
-        return exists ? tutor.id : null;
-      })
-    );
+  } catch (error) {
+    console.error("Failed to load applications:", error);
 
-    const failed = results.some(
-      (result) => result.status === "rejected"
-    );
-
-    applicationStatusError.value = failed;
-
-    if (failed) {
-      applicationError.value =
-        "Some application statuses could not be loaded. Please refresh and try again.";
-    }
-
-    appliedTutorIds.value = results
-      .filter((result) => result.status === "fulfilled")
-      .map((result) => result.value)
-      .filter(Boolean);
+    applicationStatusError.value = true;
+    applicationError.value =
+      "Could not load application statuses. Please refresh and try again.";
 
   } finally {
     isCheckingApplications.value = false;
