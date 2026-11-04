@@ -26,7 +26,7 @@ import {
   filtersToQuery,
 } from "../utils/filterQuery.js";
 import {
-  checkApplication,
+  fetchSentRequests,
   requestTutor,
 } from "../services/matches.js";
 
@@ -228,6 +228,7 @@ async function handleApply(tutor) {
   }
 }
 
+// FR-020: Load tutors the student has already requested
 async function loadAppliedTutors() {
   if (!user.value || account.value?.role !== "student") {
     appliedTutorIds.value = [];
@@ -240,32 +241,22 @@ async function loadAppliedTutors() {
   applicationStatusError.value = false;
 
   try {
-    const studentId = user.value.uid;
+    const sentRequests = await fetchSentRequests();
 
-    const results = await Promise.allSettled(
-      tutors.value.map(async (tutor) => {
-        const matchId = `${studentId}_${tutor.id}`;
-        const exists = await checkApplication(matchId);
+    appliedTutorIds.value = sentRequests
+      .filter((match) =>
+        match.studentId === user.value.uid &&
+        match.senderId === user.value.uid &&
+        !match.assignmentId
+      )
+      .map((match) => match.tutorId);
 
-        return exists ? tutor.id : null;
-      })
-    );
+  } catch (error) {
+    console.error("Failed to load applications:", error);
 
-    const failed = results.some(
-      (result) => result.status === "rejected"
-    );
-
-    applicationStatusError.value = failed;
-
-    if (failed) {
-      applicationError.value =
-        "Some application statuses could not be loaded. Please refresh and try again.";
-    }
-
-    appliedTutorIds.value = results
-      .filter((result) => result.status === "fulfilled")
-      .map((result) => result.value)
-      .filter(Boolean);
+    applicationStatusError.value = true;
+    applicationError.value =
+      "Could not load application statuses. Please refresh and try again.";
 
   } finally {
     isCheckingApplications.value = false;

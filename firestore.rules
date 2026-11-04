@@ -74,8 +74,19 @@ service cloud.firestore {
         );
     }
 
-    allow read: if hasValidParticipants(resource.data)
+    // Read an individual existing request
+    allow get: if isSignedIn()
+      && hasValidParticipants(resource.data)
       && isParticipant(resource.data);
+
+    // Query requests involving the logged-in user
+    allow list: if isSignedIn()
+      && (
+        resource.data.senderId == request.auth.uid
+        || resource.data.recipientId == request.auth.uid
+        || resource.data.studentId == request.auth.uid
+        || resource.data.tutorId == request.auth.uid
+      );
 
     allow create: if isSignedIn()
       && hasValidParticipants(request.resource.data)
@@ -85,7 +96,7 @@ service cloud.firestore {
       && request.resource.data.updatedAt == request.time;
 
     // Only the recipient can accept or reject a pending request.
-    // Student names may also be added when accepting a tutor's application (FR-016).
+    // Student names may also be added when accepting a tutor's application (FR-021).
     // senderId, recipientId, studentId and tutorId must remain unchanged.
     allow update: if isSignedIn()
       && request.auth.uid == resource.data.recipientId
@@ -101,7 +112,7 @@ service cloud.firestore {
         ])
       && request.resource.data.updatedAt == request.time;
 
-    // TODO (FR-024): Add a separate update permission for messaging.
+    // TODO (FR-026): Add a separate update permission for messaging.
     // Once a match is accepted, either participant should be able to update
     // lastMessage and updatedAt without changing the match status or IDs.
     //
@@ -126,18 +137,16 @@ service cloud.firestore {
     //   && request.resource.data.lastMessage.senderId == request.auth.uid
     //   && request.resource.data.lastMessage.sentAt == request.time
     //   && request.resource.data.updatedAt == request.time;
-    // )
 
     // Prevent users from deleting requests or accepted matches.
     // Rejected requests are retained with status "rejected".
     allow delete: if false;
 
-    // TODO (FR-024): Add rules for the messages subcollection.
+    // TODO (FR-026): Add rules for the messages subcollection.
     // Only the student and tutor in an accepted match can read/send messages.
     // Validate senderId, text (1–1000 characters) and sentAt.
-    // Messages cannot be edited or deleted after sending.
 
-    // PROPOSED (FR-024): Messages subcollection rules.
+    // PROPOSED (FR-026): Messages subcollection rules.
     // match /messages/{messageId} {
     //   allow read: if isSignedIn()
     //     && hasValidParticipants(

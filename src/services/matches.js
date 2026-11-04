@@ -2,10 +2,11 @@ import {
   collection,
   doc,
   getDoc,
+  getDocs,
   onSnapshot,
   query,
-  runTransaction,
   serverTimestamp,
+  setDoc,
   updateDoc,
   where,
 } from "firebase/firestore";
@@ -21,7 +22,27 @@ export async function checkApplication(matchId) {
   return snapshot.exists();
 }
 
-// FR-009: Student/Parent requests a tutor
+// FR-020 and FR-021: Get applications sent by the current user
+export async function fetchSentRequests() {
+  const user = auth.currentUser;
+
+  if (!user) {
+    throw new Error("Please log in first.");
+  }
+
+  const requestsQuery = query(
+    collection(db, "matches"),
+    where("senderId", "==", user.uid)
+  );
+
+  const snapshot = await getDocs(requestsQuery);
+
+  return snapshot.docs.map((matchDoc) => ({
+    id: matchDoc.id,
+    ...matchDoc.data(),
+  }));
+}
+
 export async function requestTutor(tutor, studentAccount) {
   const user = auth.currentUser;
 
@@ -44,28 +65,18 @@ export async function requestTutor(tutor, studentAccount) {
   const matchId = `${user.uid}_${tutor.id}`;
   const matchRef = doc(db, "matches", matchId);
 
-  await runTransaction(db, async (transaction) => {
-    const existing = await transaction.get(matchRef);
-
-    if (existing.exists()) {
-      const error = new Error("You have already applied to this tutor.");
-      error.code = "match/already-exists";
-      throw error;
-    }
-
-    transaction.set(matchRef, {
-      status: "pending",
-      senderId: user.uid,
-      recipientId: tutor.id,
-      studentId: user.uid,
-      tutorId: tutor.id,
-      studentFirstName: studentAccount.firstName,
-      studentLastName: studentAccount.lastName,
-      tutorFirstName: tutor.firstName,
-      tutorLastName: tutor.lastName,
-      createdAt: serverTimestamp(),
-      updatedAt: serverTimestamp(),
-    });
+  await setDoc(matchRef, {
+    status: "pending",
+    senderId: user.uid,
+    recipientId: tutor.id,
+    studentId: user.uid,
+    tutorId: tutor.id,
+    studentFirstName: studentAccount.firstName,
+    studentLastName: studentAccount.lastName,
+    tutorFirstName: tutor.firstName,
+    tutorLastName: tutor.lastName,
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
   });
 
   return matchId;
