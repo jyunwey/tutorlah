@@ -12,6 +12,11 @@ import {
   recommendAssignments,
   recommendTutors,
 } from "../utils/recommendations.js";
+import {
+  fetchSentRequests,
+  requestTutor,
+} from "../services/matches.js";
+
 
 const router = useRouter();
 const { user, account, isLoading, errorMessage } = useCurrentAccount();
@@ -90,6 +95,16 @@ const canSeeAll = computed(() =>
 const recommendations = ref([]);
 const isLoadingRecommendations = ref(false);
 const recommendationError = ref("");
+
+// FR-020: Application status for recommended tutors
+const appliedTutorIds = ref([]);
+const applyingTutorIds = ref([]);
+const isCheckingApplications = ref(false);
+const applicationStatusError = ref(false);
+const applicationError = ref("");
+const applicationSuccess = ref("");
+
+let applicationCheckId = 0;
 let recommendationRequest = 0;
 
 watch(
@@ -136,6 +151,105 @@ async function loadAssignmentRecommendations(tutorId) {
   ]);
 
   return recommendAssignments(assignments, tutorProfile);
+}
+
+// FR-020: Load tutors the student has already requested
+async function loadAppliedTutors() {
+  const currentCheck = ++applicationCheckId;
+
+  appliedTutorIds.value = [];
+  applicationStatusError.value = false;
+  applicationError.value = "";
+
+  if (
+    !user.value ||
+    account.value?.role !== "student" ||
+    !account.value.onboardingComplete
+  ) {
+    isCheckingApplications.value = false;
+    return;
+  }
+
+  isCheckingApplications.value = true;
+
+  try {
+    const sentRequests = await fetchSentRequests();
+
+    if (currentCheck !== applicationCheckId) return;
+
+    appliedTutorIds.value = sentRequests
+      .filter(
+        (match) =>
+          match.senderId === user.value.uid &&
+          match.studentId === user.value.uid &&
+          !match.assignmentId
+      )
+      .map((match) => match.tutorId);
+
+  } catch (error) {
+    if (currentCheck !== applicationCheckId) return;
+
+    console.error("Could not load application statuses:", error);
+
+    applicationStatusError.value = true;
+    applicationError.value =
+      "Could not check application statuses. Please refresh and try again.";
+
+  } finally {
+    if (currentCheck === applicationCheckId) {
+      isCheckingApplications.value = false;
+    }
+  }
+}
+
+watch(
+  [user, account],
+  async () => {
+    await loadAppliedTutors();
+  },
+  { immediate: true }
+);
+
+// FR-020: Apply to a recommended tutor
+async function handleApply(tutor) {
+  if (
+    !user.value ||
+    !account.value ||
+    account.value.role !== "student" ||
+    !account.value.onboardingComplete ||
+    isCheckingApplications.value ||
+    applicationStatusError.value ||
+    appliedTutorIds.value.includes(tutor.id) ||
+    applyingTutorIds.value.includes(tutor.id)
+  ) {
+    return;
+  }
+
+  applicationError.value = "";
+  applicationSuccess.value = "";
+
+  applyingTutorIds.value.push(tutor.id);
+
+  try {
+    await requestTutor(tutor, account.value);
+
+    if (!appliedTutorIds.value.includes(tutor.id)) {
+      appliedTutorIds.value.push(tutor.id);
+    }
+
+    applicationSuccess.value =
+      `Your request to ${tutor.firstName} ${tutor.lastName} has been sent!`;
+
+  } catch (error) {
+    console.error("Failed to apply:", error);
+
+    applicationError.value =
+      "Could not send your request. Please try again.";
+
+  } finally {
+    applyingTutorIds.value =
+      applyingTutorIds.value.filter((id) => id !== tutor.id);
+  }
 }
 
 function openTutorProfile(tutorId) {
@@ -227,6 +341,21 @@ function openRecommendation(event, item) {
               See All
             </RouterLink>
           </div>
+          <p
+            v-if="applicationSuccess && !isTutor"
+            class="recommendations-status"
+            role="status"
+          >
+            {{ applicationSuccess }}
+          </p>
+
+          <p
+            v-if="applicationError && !isTutor"
+            class="recommendations-status error"
+            role="alert"
+          >
+            {{ applicationError }}
+          </p>
 
           <p
             v-if="isLoadingRecommendations"
@@ -274,7 +403,15 @@ function openRecommendation(event, item) {
               <TutorCard
                 :tutor="item"
                 :compatibility="compatibility"
+                :applied="appliedTutorIds.includes(item.id)"
+                :is-applying="applyingTutorIds.includes(item.id)"
+                :disabled="
+                  isCheckingApplications ||
+                  applicationStatusError ||
+                  account?.role !== 'student'
+                "
                 @view-profile="openTutorProfile"
+                @apply="handleApply"
               />
             </div>
           </div>
@@ -415,6 +552,12 @@ h1 {
 .see-all:hover {
   text-decoration: underline;
 }
+
+.recommended {
+  display: flex;
+  flex-direction: column;
+}
+
 .recommendations-status {
   margin: 0;
   padding: 24px 8px;

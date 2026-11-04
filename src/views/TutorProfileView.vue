@@ -27,7 +27,7 @@ import {
 } from "../utils/tutorDisplay.js";
 import {
   requestTutor,
-  checkApplication,
+  fetchSentRequests,
 } from "../services/matches.js";
 
 // FR-013: a tutor's public profile. It only reads tutorProfiles,
@@ -56,8 +56,7 @@ const resultsPath =
     ? previousPath
     : "/find-tutors";
 
-// The signed-in user's account, for the navigation bar (FR-005) and,
-// for students, the preferences saved in Create Profile (FR-026).
+// The signed-in user's account, for the navigation bar (FR-005) 
 const { user, account } = useCurrentAccount();
 
 // Same filters and preferences as the results page,
@@ -107,14 +106,9 @@ async function handleApply() {
   } catch (error) {
     console.error("Failed to request tutor:", error);
 
-    if (error.code === "match/already-exists") {
-      applied.value = true;
-      applicationError.value =
-        "You have already applied to this tutor.";
-    } else {
-      applicationError.value =
-        "Could not send your request. Please try again.";
-    }
+    applicationError.value =
+      "Could not send your request. Please try again.";
+
   } finally {
     isApplying.value = false;
   }
@@ -145,14 +139,18 @@ watch(
     isCheckingApplication.value = true;
 
     try {
-      const matchId = `${user.value.uid}_${tutor.value.id}`;
-
-      const exists = await checkApplication(matchId);
+      const sentRequests = await fetchSentRequests();
 
       // Ignore outdated requests
       if (currentCheck !== applicationCheckId) return;
 
-      applied.value = exists;
+      applied.value = sentRequests.some(
+        (match) =>
+          match.senderId === user.value.uid &&
+          match.studentId === user.value.uid &&
+          match.tutorId === tutor.value.id &&
+          !match.assignmentId
+      );
 
     } catch (error) {
       if (currentCheck !== applicationCheckId) return;
@@ -276,7 +274,7 @@ onMounted(async () => {
           </div>
         </header>
 
-        <!-- The Apply button (FR-009) goes here in Sprint 2. -->
+        <!-- The Apply button (FR-020) goes here in Sprint 2. -->
         <div
           v-if="account?.role === 'student'"
           class="apply-section"

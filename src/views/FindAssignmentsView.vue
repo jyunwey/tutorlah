@@ -27,6 +27,10 @@ import {
 import {
   getAssignmentCompatibility,
 } from '../utils/compatibility.js'
+import {
+  fetchSentRequests,
+  requestAssignment,
+} from '../services/matches.js'
 
 const {
   user,
@@ -47,6 +51,14 @@ const isTutorProfileLoading = ref(false)
 const errorMessage = ref('')
 const tutorProfileMessage = ref('')
 const showFilters = ref(false)
+
+// FR-021: Tutor assignment applications
+const appliedAssignmentIds = ref([])
+const applyingAssignmentIds = ref([])
+const isCheckingApplications = ref(false)
+const applicationStatusError = ref(false)
+const applicationError = ref('')
+const applicationSuccess = ref('')
 
 let profileRequestId = 0
 
@@ -336,6 +348,89 @@ async function loadAssignments() {
   }
 }
 
+// FR-021: Load assignments the tutor has already applied for
+async function loadAppliedAssignments() {
+  if (!user.value || account.value?.role !== 'tutor') {
+    appliedAssignmentIds.value = []
+    isCheckingApplications.value = false
+    applicationStatusError.value = false
+    return
+  }
+
+  isCheckingApplications.value = true
+  applicationStatusError.value = false
+  applicationError.value = ''
+
+  try {
+    const sentRequests = await fetchSentRequests()
+
+    appliedAssignmentIds.value = sentRequests
+      .filter((match) =>
+        match.senderId === user.value.uid &&
+        match.tutorId === user.value.uid &&
+        Boolean(match.assignmentId)
+      )
+      .map((match) => match.assignmentId)
+
+  } catch (error) {
+    console.error('Failed to load applications:', error)
+
+    applicationStatusError.value = true
+    applicationError.value =
+      'Could not load application statuses. Please refresh and try again.'
+
+  } finally {
+    isCheckingApplications.value = false
+  }
+}
+
+// FR-021: Tutor applies for an assignment
+async function handleApply(assignment) {
+  if (
+    !user.value ||
+    account.value?.role !== 'tutor' ||
+    !account.value.onboardingComplete ||
+    isCheckingApplications.value ||
+    applicationStatusError.value ||
+    appliedAssignmentIds.value.includes(assignment.id) ||
+    applyingAssignmentIds.value.includes(assignment.id)
+  ) {
+    return
+  }
+
+  applicationError.value = ''
+  applicationSuccess.value = ''
+  applyingAssignmentIds.value.push(assignment.id)
+
+  try {
+    await requestAssignment(assignment, account.value)
+
+    appliedAssignmentIds.value.push(assignment.id)
+    applicationSuccess.value =
+      `Your application for ${assignment.level} ${assignment.subject} has been sent!`
+
+  } catch (error) {
+    console.error('Failed to apply:', error)
+
+    applicationError.value =
+      'Could not send your application. Please try again.'
+
+  } finally {
+    applyingAssignmentIds.value =
+      applyingAssignmentIds.value.filter(
+        (id) => id !== assignment.id
+      )
+  }
+}
+
+watch(
+  [user, account],
+  async () => {
+    await loadAppliedAssignments()
+  },
+  { immediate: true }
+)
+
 onMounted(loadAssignments)
 </script>
 
@@ -388,6 +483,23 @@ onMounted(loadAssignments)
       </div>
 
       <section class="results">
+        <!-- FR-021: Application feedback -->
+        <p
+          v-if="applicationSuccess"
+          class="notice"
+          role="status"
+        >
+          {{ applicationSuccess }}
+        </p>
+
+        <p
+          v-if="applicationError"
+          class="page-message error-message"
+          role="alert"
+        >
+          {{ applicationError }}
+        </p>
+
         <p
           v-if="isPageLoading"
           class="page-message"
@@ -399,16 +511,17 @@ onMounted(loadAssignments)
           v-else-if="!user"
           class="page-message"
         >
-          <p>
-            Please sign in to view assignments.
-          </p>
 
-          <RouterLink
-            to="/login"
-            class="message-link"
-          >
-            Sign In
-          </RouterLink>
+        <p>
+          Please sign in to view assignments.
+        </p>
+
+        <RouterLink
+          to="/login"
+          class="message-link"
+        >
+          Sign In
+        </RouterLink>
         </div>
 
         <div
@@ -511,6 +624,16 @@ onMounted(loadAssignments)
               :key="assignment.id"
               :assignment="assignment"
               :compatibility="compatibility"
+              :show-apply="account?.role === 'tutor'"
+              :applied="appliedAssignmentIds.includes(assignment.id)"
+              :is-applying="applyingAssignmentIds.includes(assignment.id)"
+              :disabled="
+                isCheckingApplications ||
+                applicationStatusError ||
+                !account?.onboardingComplete ||
+                assignment.status !== 'open'
+              "
+              @apply="handleApply"
             />
           </div>
         </template>
