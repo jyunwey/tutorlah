@@ -336,26 +336,26 @@ function openRecommendation(event, item) {
 
         <section class="recommended" aria-labelledby="recommended-title">
           <div class="section-heading">
-            <p
-              v-if="applicationSuccess && !isTutor"
-              class="recommendations-status"
-              role="status"
-            >
-              {{ applicationSuccess }}
-            </p>
-
-            <p
-              v-if="applicationError && !isTutor"
-              class="recommendations-status error"
-              role="alert"
-            >
-              {{ applicationError }}
-            </p>
             <h2 id="recommended-title">{{ recommendation.title }}</h2>
             <RouterLink v-if="canSeeAll" :to="recommendation.seeAllPath" class="see-all">
               See All
             </RouterLink>
           </div>
+          <p
+            v-if="applicationSuccess && !isTutor"
+            class="recommendations-status"
+            role="status"
+          >
+            {{ applicationSuccess }}
+          </p>
+
+          <p
+            v-if="applicationError && !isTutor"
+            class="recommendations-status error"
+            role="alert"
+          >
+            {{ applicationError }}
+          </p>
 
           <p
             v-if="isLoadingRecommendations"
@@ -552,6 +552,12 @@ h1 {
 .see-all:hover {
   text-decoration: underline;
 }
+
+.recommended {
+  display: flex;
+  flex-direction: column;
+}
+
 .recommendations-status {
   margin: 0;
   padding: 24px 8px;
@@ -559,7 +565,6 @@ h1 {
 }
 .recommendation-list {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 16px;
 }
 .recommendation {
