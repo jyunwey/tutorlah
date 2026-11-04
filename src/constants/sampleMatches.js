@@ -1,6 +1,6 @@
-// TEMPORARY sample data so the My Matches skeleton can be seen before
-// requests and matches are saved in Firestore (FR-009, FR-016).
-// Delete this file once MyMatchesView loads real data.
+// TEMPORARY sample matches and chats for All Matches (FR-023, FR-024).
+// Requests already come from Firestore (FR-022).
+// Delete this file once All Matches loads real data.
 //
 // Each sample uses the same fields as a `matches` document in
 // docs/data-model.md, with its messages in a separate list.
@@ -11,9 +11,6 @@ const PEOPLE = {
   rachel: { id: "sample-rachel", firstName: "Rachel", lastName: "Wong" },
   marcus: { id: "sample-marcus", firstName: "Marcus", lastName: "Lee" },
   aisyah: { id: "sample-aisyah", firstName: "Aisyah", lastName: "Rahman" },
-  sarah: { id: "sample-sarah", firstName: "Sarah", lastName: "Ng" },
-  ethan: { id: "sample-ethan", firstName: "Ethan", lastName: "Koh" },
-  priya: { id: "sample-priya", firstName: "Priya", lastName: "Nair" },
 };
 
 // Each line says whether the student or the tutor wrote it, so the same
@@ -37,13 +34,6 @@ const CHATS = {
   marcus: [["tutor", 60 * 24 * 3, "No problem, see you next week!"]],
   aisyah: [["tutor", 60 * 24 * 5, "Sure, I can help with that."]],
 };
-
-// Requests waiting for my answer, and how many days ago they were sent.
-const PENDING = [
-  ["sarah", 1],
-  ["ethan", 3],
-  ["priya", 8],
-];
 
 function minutesAgo(minutes) {
   return new Date(Date.now() - minutes * 60 * 1000);
@@ -92,12 +82,6 @@ export function createSampleData(account, myId) {
     match.lastMessage = { text, senderId, sentAt };
     matches.push(match);
     messagesByMatch[match.id] = messages;
-  }
-
-  for (const [key, days] of PENDING) {
-    matches.push(
-      createMatchDoc(account, myId, PEOPLE[key], "pending", minutesAgo(60 * 24 * days))
-    );
   }
 
   return { matches, messagesByMatch };

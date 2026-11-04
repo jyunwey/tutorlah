@@ -19,6 +19,11 @@ defineProps({
     type: String,
     default: "student",
   },
+  // The request being saved. All buttons wait until it finishes.
+  respondingId: {
+    type: String,
+    default: null,
+  },
 });
 
 const emit = defineEmits(["accept", "reject"]);
@@ -56,10 +61,11 @@ const emit = defineEmits(["accept", "reject"]);
 
         <p class="date">{{ formatDate(request.createdAt) }}</p>
 
-        <div class="actions">
+        <div class="actions" :aria-busy="respondingId === request.id">
           <button
             type="button"
             class="accept-button"
+            :disabled="respondingId !== null"
             @click="emit('accept', request.id)"
           >
             <span aria-hidden="true">✓</span> Accept
@@ -67,6 +73,7 @@ const emit = defineEmits(["accept", "reject"]);
           <button
             type="button"
             class="reject-button"
+            :disabled="respondingId !== null"
             @click="emit('reject', request.id)"
           >
             <span aria-hidden="true">✕</span> Reject
@@ -178,7 +185,7 @@ const emit = defineEmits(["accept", "reject"]);
   color: white;
 }
 
-.accept-button:hover {
+.accept-button:hover:not(:disabled) {
   background: var(--color-primary-dark);
 }
 
@@ -187,8 +194,14 @@ const emit = defineEmits(["accept", "reject"]);
   color: var(--color-error);
 }
 
-.reject-button:hover {
+.reject-button:hover:not(:disabled) {
   background: #f9d6d2;
+}
+
+.accept-button:disabled,
+.reject-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 .profile-link {
