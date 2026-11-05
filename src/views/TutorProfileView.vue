@@ -56,6 +56,11 @@ const resultsPath =
     ? previousPath
     : "/find-tutors";
 
+const cameFromRequests =
+  typeof previousPath === "string" && previousPath.startsWith("/my-matches");
+const backPath = cameFromRequests ? previousPath : resultsPath;
+const backLabel = cameFromRequests ? "Back to Requests" : "Back to Results";
+
 // The signed-in user's account, for the navigation bar (FR-005) 
 const { user, account } = useCurrentAccount();
 
@@ -216,8 +221,8 @@ onMounted(async () => {
     </div>
 
     <div class="container">
-      <RouterLink :to="resultsPath" class="back-link">
-        <span aria-hidden="true">←</span> Back to Results
+      <RouterLink :to="backPath" class="back-link">
+        <span aria-hidden="true">←</span> {{ backLabel }}
       </RouterLink>
 
       <p v-if="isLoading" class="status">Loading tutor...</p>
