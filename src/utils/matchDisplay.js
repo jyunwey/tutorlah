@@ -70,3 +70,7 @@ export function formatListTime(value) {
 
   return formatDate(date);
 }
+
+export function getLessonLabel(match) {
+  return [match.subject, match.level].filter(Boolean).join(" · ");
+}

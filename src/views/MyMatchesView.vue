@@ -13,6 +13,7 @@ import {
   listenToIncomingRequests,
   rejectMatchRequest,
 } from "../services/matches.js";
+import { fetchAssignment } from "../services/assignments.js";
 import {
   getFullName,
   getOtherUser,
@@ -45,6 +46,7 @@ const requestsError = ref("");
 // The request being accepted or rejected, so its buttons can't be
 // clicked twice.
 const respondingId = ref(null);
+const assignmentsById = ref({});
 
 // Accepted matches (SAMPLE DATA until FR-023 loads them from Firestore).
 const matchDocs = ref([]);
@@ -70,11 +72,50 @@ function withOtherUser(match) {
   return { ...match, otherUser: getOtherUser(match, myId.value) };
 }
 
+function withLesson(match) {
+  const assignment = assignmentsById.value[match.assignmentId];
+
+  return {
+    ...match,
+    subject: match.subject ?? assignment?.subject ?? "",
+    level: match.level ?? assignment?.level ?? "",
+  };
+}
+
+watch(requestDocs, async (docs) => {
+  const missingIds = [
+    ...new Set(
+      docs
+        .map((match) => match.assignmentId)
+        .filter((id) => id && !(id in assignmentsById.value))
+    ),
+  ];
+
+  if (missingIds.length === 0) {
+    return;
+  }
+
+  const assignments = await Promise.all(
+    missingIds.map((id) =>
+      fetchAssignment(id).catch((error) => {
+        console.error("Could not load assignment:", error);
+        return null;
+      })
+    )
+  );
+
+  assignmentsById.value = {
+    ...assignmentsById.value,
+    ...Object.fromEntries(missingIds.map((id, index) => [id, assignments[index]])),
+  };
+});
+
 // FR-022: newest request first.
 const requests = computed(() =>
   [...requestDocs.value]
     .sort((a, b) => toDate(b.createdAt) - toDate(a.createdAt))
     .map(withOtherUser)
+    .map(withLesson)
 );
 
 // FR-022: listen for requests sent to me. New requests appear, and

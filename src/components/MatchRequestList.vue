@@ -5,6 +5,7 @@ import InitialsAvatar from "./InitialsAvatar.vue";
 import {
   formatDate,
   getFullName,
+  getLessonLabel,
   getRoleLabel,
 } from "../utils/matchDisplay.js";
 
@@ -40,7 +41,7 @@ const emit = defineEmits(["accept", "reject"]);
     </header>
 
     <p v-if="requests.length === 0" class="empty">
-      No requests right now. New requests will appear here.
+      No requests yet. New requests will appear here.
     </p>
 
     <ul v-else class="request-list">
@@ -50,6 +51,9 @@ const emit = defineEmits(["accept", "reject"]);
         <div class="details">
           <p class="name">{{ getFullName(request.otherUser) }}</p>
           <p class="role">{{ getRoleLabel(request.otherUser.role) }}</p>
+          <p v-if="getLessonLabel(request)" class="lesson">
+            {{ getLessonLabel(request) }}
+          </p>
           <p class="note">
             {{
               request.otherUser.role === "tutor"
@@ -155,6 +159,12 @@ const emit = defineEmits(["accept", "reject"]);
 
 .name {
   font-weight: 700;
+}
+
+.lesson {
+  color: var(--color-primary);
+  font-size: 0.95rem;
+  font-weight: 600;
 }
 
 .role,

@@ -1,6 +1,8 @@
 import {
   addDoc,
   collection,
+  doc,
+  getDoc,
   getDocs,
   query,
   serverTimestamp,
@@ -84,4 +86,17 @@ export async function fetchAssignments() {
 
     return secondCreatedAt - firstCreatedAt
   })
+}
+
+export async function fetchAssignment(assignmentId) {
+  const snapshot = await getDoc(doc(db, 'assignments', assignmentId))
+
+  if (!snapshot.exists()) {
+    return null
+  }
+
+  return {
+    id: snapshot.id,
+    ...snapshot.data(),
+  }
 }
