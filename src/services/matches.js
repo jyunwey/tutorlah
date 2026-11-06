@@ -43,6 +43,31 @@ export async function fetchSentRequests() {
   }));
 }
 
+// Every request or match between the signed-in student and one tutor,
+// whoever sent it. Tutor Profile uses it so a student doesn't send a
+// second request to a tutor who already applied to them or matched
+// with them (FR-022).
+export async function fetchMatchesWithTutor(tutorId) {
+  const user = auth.currentUser;
+
+  if (!user) {
+    throw new Error("Please log in first.");
+  }
+
+  const matchesQuery = query(
+    collection(db, "matches"),
+    where("studentId", "==", user.uid),
+    where("tutorId", "==", tutorId)
+  );
+
+  const snapshot = await getDocs(matchesQuery);
+
+  return snapshot.docs.map((matchDoc) => ({
+    id: matchDoc.id,
+    ...matchDoc.data(),
+  }));
+}
+
 export async function requestTutor(tutor, studentAccount) {
   const user = auth.currentUser;
 
