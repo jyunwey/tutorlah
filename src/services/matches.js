@@ -149,6 +149,43 @@ export function listenToIncomingRequests(userId, onChange, onError) {
   );
 }
 
+// FR-023: accepted matches involving the current user, kept up to date as
+// they change. Returns a function that stops listening.
+export function listenToAcceptedMatches(userId, role, onChange, onError) {
+  if (!userId) {
+    throw new Error("A user ID is required to load accepted matches.");
+  }
+
+  const participantField = role === "student"
+    ? "studentId"
+    : role === "tutor"
+      ? "tutorId"
+      : null;
+
+  if (!participantField) {
+    throw new Error("A valid account role is required to load accepted matches.");
+  }
+
+  const matchesQuery = query(
+    collection(db, "matches"),
+    where(participantField, "==", userId),
+    where("status", "==", "accepted")
+  );
+
+  return onSnapshot(
+    matchesQuery,
+    (snapshot) => {
+      onChange(
+        snapshot.docs.map((matchDoc) => ({
+          id: matchDoc.id,
+          ...matchDoc.data({ serverTimestamps: "estimate" }),
+        }))
+      );
+    },
+    onError
+  );
+}
+
 // FR-022: Accept turns the request into a match, so it moves to All Matches.
 // A student accepting a tutor's application (FR-016) also adds their own
 // name, because the tutor couldn't see it when applying (docs/data-model.md).
