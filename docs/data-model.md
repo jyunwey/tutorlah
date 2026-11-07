@@ -198,8 +198,8 @@ There are two ways a request is created:
 | Student clicks Apply on a tutor card or Tutor Profile | FR-009     | student | tutor                     | `{studentId}_{tutorId}`    |
 | Tutor clicks Apply on an assignment                  | FR-016      | tutor   | student who posted it     | `{assignmentId}_{tutorId}` |
 
-The document ID is fixed, not auto-generated, so the same person can't apply twice, and the
-Apply button can check whether to show "Applied" with a single `getDoc`.
+The document ID is fixed, not auto-generated, so the same person can't apply twice: a second
+Apply would try to overwrite the first, and the rules only let the recipient change a request.
 
 | Field              | Type      | Required | Notes                                                        |
 | ------------------ | --------- | -------- | ------------------------------------------------------------ |
@@ -224,7 +224,12 @@ tutor applying can't see it.
 
 **What each page reads:**
 
-- **Apply button (FR-009, FR-016):** `getDoc(matches/{fixed ID})`. If it exists, show "Applied".
+- **Apply buttons (FR-009, FR-016):** `senderId == myUid`. Any request in the list shows that
+  card's button as "Applied". It can't be a `getDoc` of the fixed ID: before you apply, the
+  document doesn't exist, and the rules deny reading a missing document.
+- **Tutor Profile (FR-009, FR-022):** `studentId == myUid` and `tutorId == tutorUid`, which also
+  finds requests the tutor sent. If they are matched, or the tutor applied to the student's
+  assignment, the page links to My Matches instead of showing Apply.
 - **Requests tab (FR-022):** `recipientId == myUid` and `status == "pending"`.
 - **All Matches tab (FR-023):** `studentId == myUid` (students) or `tutorId == myUid` (tutors),
   and `status == "accepted"`. Sorted by `lastMessage.sentAt`, newest first.

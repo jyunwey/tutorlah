@@ -1,7 +1,6 @@
 import {
   collection,
   doc,
-  getDoc,
   getDocs,
   onSnapshot,
   query,
@@ -13,16 +12,8 @@ import {
 
 import { auth, db } from "../firebase.js";
 
-// Check whether the user has already applied
-export async function checkApplication(matchId) {
-  const snapshot = await getDoc(
-    doc(db, "matches", matchId)
-  );
-
-  return snapshot.exists();
-}
-
-// FR-020 and FR-021: Get applications sent by the current user
+// FR-009 and FR-016: requests the signed-in user sent, so Apply buttons
+// can show "Applied".
 export async function fetchSentRequests() {
   const user = auth.currentUser;
 
