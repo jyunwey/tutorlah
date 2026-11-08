@@ -29,9 +29,11 @@ const router = createRouter({
     return savedPosition || { top: 0 };
   },
   routes: [
+    // FR-001: the app starts on the Login page. Signed-in users are sent
+    // on to Home by the guestOnly check below.
     {
       path: "/",
-      redirect: "/register",
+      redirect: "/login",
     },
     {
       path: "/register",
@@ -93,7 +95,7 @@ const router = createRouter({
     },
     {
       path: "/:pathMatch(.*)*",
-      redirect: "/register",
+      redirect: "/login",
     },
     {
       path: "/login",

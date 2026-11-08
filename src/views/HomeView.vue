@@ -98,6 +98,8 @@ const recommendationError = ref("");
 
 // FR-020: Application status for recommended tutors
 const appliedTutorIds = ref([]);
+// FR-022: tutors who rejected my request.
+const rejectedTutorIds = ref([]);
 const applyingTutorIds = ref([]);
 const isCheckingApplications = ref(false);
 const applicationStatusError = ref(false);
@@ -158,6 +160,7 @@ async function loadAppliedTutors() {
   const currentCheck = ++applicationCheckId;
 
   appliedTutorIds.value = [];
+  rejectedTutorIds.value = [];
   applicationStatusError.value = false;
   applicationError.value = "";
 
@@ -177,13 +180,16 @@ async function loadAppliedTutors() {
 
     if (currentCheck !== applicationCheckId) return;
 
-    appliedTutorIds.value = sentRequests
-      .filter(
-        (match) =>
-          match.senderId === user.value.uid &&
-          match.studentId === user.value.uid &&
-          !match.assignmentId
-      )
+    const myRequests = sentRequests.filter(
+      (match) =>
+        match.senderId === user.value.uid &&
+        match.studentId === user.value.uid &&
+        !match.assignmentId
+    );
+
+    appliedTutorIds.value = myRequests.map((match) => match.tutorId);
+    rejectedTutorIds.value = myRequests
+      .filter((match) => match.status === "rejected")
       .map((match) => match.tutorId);
 
   } catch (error) {
@@ -256,15 +262,19 @@ function openTutorProfile(tutorId) {
   router.push({ name: "tutor-profile", params: { id: tutorId } });
 }
 
-function openFindAssignments() {
-  router.push({ name: "find-assignments" });
+// FR-007: opens Find Assignments at this assignment's card.
+function openFindAssignments(assignmentId) {
+  router.push({
+    name: "find-assignments",
+    query: { assignment: assignmentId },
+  });
 }
 
 function openRecommendation(event, item) {
   if (event.target.closest("button, a")) return;
 
   if (isTutor.value) {
-    openFindAssignments();
+    openFindAssignments(item.id);
   } else {
     openTutorProfile(item.id);
   }
@@ -387,7 +397,7 @@ function openRecommendation(event, item) {
               tabindex="0"
               :aria-label="`${item.level} ${item.subject}: open Find Assignments`"
               @click="openRecommendation($event, item)"
-              @keydown.enter.self="openFindAssignments"
+              @keydown.enter.self="openFindAssignments(item.id)"
             >
               <AssignmentCard :assignment="item" :compatibility="compatibility" />
             </div>
@@ -404,6 +414,7 @@ function openRecommendation(event, item) {
                 :tutor="item"
                 :compatibility="compatibility"
                 :applied="appliedTutorIds.includes(item.id)"
+                :rejected="rejectedTutorIds.includes(item.id)"
                 :is-applying="applyingTutorIds.includes(item.id)"
                 :disabled="
                   isCheckingApplications ||

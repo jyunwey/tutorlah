@@ -45,6 +45,8 @@ const isLoading = ref(true);
 const errorMessage = ref("");
 
 const appliedTutorIds = ref([]);
+// FR-022: tutors who rejected my request.
+const rejectedTutorIds = ref([]);
 const applyingTutorIds = ref([]);
 const applicationError = ref("");
 const applicationSuccess = ref("");
@@ -223,6 +225,7 @@ async function handleApply(tutor) {
 async function loadAppliedTutors() {
   if (!user.value || account.value?.role !== "student") {
     appliedTutorIds.value = [];
+    rejectedTutorIds.value = [];
     isCheckingApplications.value = false;
     applicationStatusError.value = false;
     return;
@@ -234,12 +237,15 @@ async function loadAppliedTutors() {
   try {
     const sentRequests = await fetchSentRequests();
 
-    appliedTutorIds.value = sentRequests
-      .filter((match) =>
-        match.studentId === user.value.uid &&
-        match.senderId === user.value.uid &&
-        !match.assignmentId
-      )
+    const myRequests = sentRequests.filter((match) =>
+      match.studentId === user.value.uid &&
+      match.senderId === user.value.uid &&
+      !match.assignmentId
+    );
+
+    appliedTutorIds.value = myRequests.map((match) => match.tutorId);
+    rejectedTutorIds.value = myRequests
+      .filter((match) => match.status === "rejected")
       .map((match) => match.tutorId);
 
   } catch (error) {
@@ -274,6 +280,7 @@ watch(
       tutors.value.length === 0
     ) {
       appliedTutorIds.value = [];
+      rejectedTutorIds.value = [];
       return;
     }
 
@@ -380,6 +387,7 @@ watch(
               :tutor="tutor"
               :compatibility="compatibility"
               :applied="appliedTutorIds.includes(tutor.id)"
+              :rejected="rejectedTutorIds.includes(tutor.id)"
               :is-applying="applyingTutorIds.includes(tutor.id)"
               :disabled="isCheckingApplications || applicationStatusError || account?.role !== 'student'"
               @view-profile="viewProfile"

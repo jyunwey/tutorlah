@@ -182,6 +182,32 @@ describe("creating requests (FR-009, FR-016)", () => {
     );
   });
 
+  test("a student's request can say which subject and level they want", async () => {
+    await seed();
+    await assertSucceeds(
+      setDoc(
+        doc(db(STUDENT), "matches", DIRECT_ID),
+        directRequest({ subject: "Mathematics, Physics", level: "Secondary" })
+      )
+    );
+  });
+
+  test("the subject and level must be short text", async () => {
+    await seed();
+    await assertFails(
+      setDoc(
+        doc(db(STUDENT), "matches", DIRECT_ID),
+        directRequest({ subject: 42 })
+      )
+    );
+    await assertFails(
+      setDoc(
+        doc(db(STUDENT), "matches", DIRECT_ID),
+        directRequest({ level: "x".repeat(51) })
+      )
+    );
+  });
+
   test("a request cannot start as accepted or carry extra fields", async () => {
     await seed();
     await assertFails(

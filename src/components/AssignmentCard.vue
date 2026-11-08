@@ -21,6 +21,12 @@ const props = defineProps({
     default: false,
   },
 
+  // FR-022: the student rejected my application.
+  rejected: {
+    type: Boolean,
+    default: false,
+  },
+
   isApplying: {
     type: Boolean,
     default: false,
@@ -93,9 +99,6 @@ function formatPostedDate(timestamp) {
           </p>
         </div>
 
-        <span class="status">
-          {{ assignment.status }}
-        </span>
       </header>
 
       <div class="main-details">
@@ -183,15 +186,18 @@ function formatPostedDate(timestamp) {
         v-if="showApply"
         type="button"
         class="apply-btn"
-        :disabled="applied || isApplying || disabled"
+        :class="{ rejected }"
+        :disabled="applied || rejected || isApplying || disabled"
         @click.stop="handleApply"
       >
         {{
-          applied
-            ? 'Applied'
-            : isApplying
-              ? 'Applying...'
-              : 'Apply'
+          rejected
+            ? 'Rejected'
+            : applied
+              ? 'Applied'
+              : isApplying
+                ? 'Applying...'
+                : 'Apply'
         }}
       </button>
     </div>
@@ -241,16 +247,6 @@ function formatPostedDate(timestamp) {
 .location {
   margin-top: 6px !important;
   color: var(--color-text-muted);
-}
-
-.status {
-  padding: 5px 10px;
-  border-radius: 999px;
-  background: var(--color-primary-light);
-  color: var(--color-primary);
-  font-size: 0.8rem;
-  font-weight: 700;
-  text-transform: capitalize;
 }
 
 .main-details {
@@ -353,6 +349,12 @@ function formatPostedDate(timestamp) {
   background: #e5e7eb;
   color: #6b7280;
   cursor: not-allowed;
+}
+
+/* FR-022: the student rejected this application. */
+.apply-btn.rejected:disabled {
+  background: #fdecea;
+  color: var(--color-error);
 }
 
 @media (max-width: 700px) {
