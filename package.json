@@ -11,7 +11,8 @@
     "lint:oxlint": "oxlint . --fix",
     "lint:eslint": "eslint . --fix --cache",
     "format": "prettier --write --experimental-cli src/",
-    "seed:tutors": "node scripts/seedTutors.js"
+    "seed:tutors": "node scripts/seedTutors.js",
+    "test:rules": "npx -y firebase-tools@15 emulators:exec --only firestore --project demo-tutorlah \"node --test tests/firestore.rules.test.js\""
   },
   "dependencies": {
     "firebase": "^13.0.0",
@@ -21,6 +22,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
+    "@firebase/rules-unit-testing": "^6.0.0",
     "@vitejs/plugin-vue": "^6.0.8",
     "eslint": "^10.10.0",
     "eslint-config-prettier": "^10.1.8",
