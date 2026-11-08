@@ -4,7 +4,6 @@ rules_version = '2';
 //
 // Any collection without a rule here is blocked.
 // Add a rule before using a new collection.
-// TODO (Sprint 2): rules for requests, matches and messages.
 
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -74,6 +73,66 @@ service cloud.firestore {
         );
     }
 
+    function hasAllowedRequestFields(data) {
+      return data.keys().hasOnly([
+          "status",
+          "senderId",
+          "recipientId",
+          "studentId",
+          "tutorId",
+          "assignmentId",
+          "studentFirstName",
+          "studentLastName",
+          "tutorFirstName",
+          "tutorLastName",
+          "createdAt",
+          "updatedAt"
+        ])
+        && data.tutorFirstName is string
+        && data.tutorLastName is string
+        && data.get("studentFirstName", "") is string
+        && data.get("studentLastName", "") is string;
+    }
+
+    function hasFinishedProfile() {
+      return get(
+        /databases/$(database)/documents/users/$(request.auth.uid)
+      ).data.onboardingComplete == true;
+    }
+
+    function isDirectTutorRequest(id, data) {
+      return !("assignmentId" in data)
+        && data.senderId == data.studentId
+        && id == data.studentId + "_" + data.tutorId
+        && currentUserRole() == "student"
+        && exists(
+          /databases/$(database)/documents/tutorProfiles/$(data.tutorId)
+        );
+    }
+
+    function isAssignmentApplication(id, data) {
+      return "assignmentId" in data
+        && data.assignmentId is string
+        && data.senderId == data.tutorId
+        && id == data.assignmentId + "_" + data.tutorId
+        && currentUserRole() == "tutor"
+        && get(
+          /databases/$(database)/documents/assignments/$(data.assignmentId)
+        ).data.studentId == data.studentId
+        && get(
+          /databases/$(database)/documents/assignments/$(data.assignmentId)
+        ).data.status == "open";
+    }
+
+    function isAcceptedMatchParticipant(id) {
+      let parent = get(
+        /databases/$(database)/documents/matches/$(id)
+      ).data;
+      return hasValidParticipants(parent)
+        && isParticipant(parent)
+        && parent.status == "accepted";
+    }
+
     // Read an individual existing request
     allow get: if isSignedIn()
       && hasValidParticipants(resource.data)
@@ -92,6 +151,12 @@ service cloud.firestore {
       && hasValidParticipants(request.resource.data)
       && request.auth.uid == request.resource.data.senderId
       && request.resource.data.status == "pending"
+      && hasAllowedRequestFields(request.resource.data)
+      && hasFinishedProfile()
+      && (
+        isDirectTutorRequest(matchId, request.resource.data)
+        || isAssignmentApplication(matchId, request.resource.data)
+      )
       && request.resource.data.createdAt == request.time
       && request.resource.data.updatedAt == request.time;
 
@@ -110,68 +175,60 @@ service cloud.firestore {
           "studentFirstName",
           "studentLastName"
         ])
+      && (
+        !request.resource.data.diff(resource.data)
+          .affectedKeys()
+          .hasAny(["studentFirstName", "studentLastName"])
+        || (
+          request.auth.uid == resource.data.studentId
+          && request.resource.data.status == "accepted"
+          && request.resource.data.studentFirstName is string
+          && request.resource.data.studentLastName is string
+        )
+      )
       && request.resource.data.updatedAt == request.time;
 
-    // TODO (FR-026): Add a separate update permission for messaging.
-    // Once a match is accepted, either participant should be able to update
-    // lastMessage and updatedAt without changing the match status or IDs.
-    //
-    // This must be coordinated with the messages subcollection rules
-    // to ensure lastMessage corresponds to a valid message.
-    //
-    // Proposed additional condition for allow update:
-    //
-    // allow update: if isSignedIn()
-    //   && hasValidParticipants(resource.data)
-    //   && isParticipant(resource.data)
-    //   && resource.data.status == "accepted"
-    //   && request.resource.data.status == "accepted"
-    //   && request.resource.data.diff(resource.data)
-    //     .affectedKeys()
-    //     .hasOnly(["lastMessage", "updatedAt"])
-    //   && request.resource.data.lastMessage.keys()
-    //     .hasAll(["text", "senderId", "sentAt"])
-    //   && request.resource.data.lastMessage.text is string
-    //   && request.resource.data.lastMessage.text.size() > 0
-    //   && request.resource.data.lastMessage.text.size() <= 1000
-    //   && request.resource.data.lastMessage.senderId == request.auth.uid
-    //   && request.resource.data.lastMessage.sentAt == request.time
-    //   && request.resource.data.updatedAt == request.time;
+    allow update: if isSignedIn()
+      && hasValidParticipants(resource.data)
+      && isParticipant(resource.data)
+      && resource.data.status == "accepted"
+      && request.resource.data.status == "accepted"
+      && request.resource.data.diff(resource.data)
+        .affectedKeys()
+        .hasOnly(["lastMessage", "updatedAt"])
+      && request.resource.data.lastMessage.keys()
+        .hasAll(["text", "senderId", "sentAt"])
+      && request.resource.data.lastMessage.keys()
+        .hasOnly(["text", "senderId", "sentAt"])
+      && request.resource.data.lastMessage.text is string
+      && request.resource.data.lastMessage.text.size() > 0
+      && request.resource.data.lastMessage.text.size() <= 1000
+      && request.resource.data.lastMessage.senderId == request.auth.uid
+      && request.resource.data.lastMessage.sentAt == request.time
+      && request.resource.data.updatedAt == request.time;
 
     // Prevent users from deleting requests or accepted matches.
     // Rejected requests are retained with status "rejected".
     allow delete: if false;
 
-    // TODO (FR-026): Add rules for the messages subcollection.
-    // Only the student and tutor in an accepted match can read/send messages.
-    // Validate senderId, text (1–1000 characters) and sentAt.
+    match /messages/{messageId} {
+      allow read: if isSignedIn()
+        && isAcceptedMatchParticipant(matchId);
 
-    // PROPOSED (FR-026): Messages subcollection rules.
-    // match /messages/{messageId} {
-    //   allow read: if isSignedIn()
-    //     && hasValidParticipants(
-    //       get(/databases/$(database)/documents/matches/$(matchId)).data
-    //     )
-    //     && isParticipant(
-    //       get(/databases/$(database)/documents/matches/$(matchId)).data
-    //     )
-    //     && get(/databases/$(database)/documents/matches/$(matchId))
-    //       .data.status == "accepted";
-    //
-    //   allow create: if isSignedIn()
-    //     && request.resource.data.senderId == request.auth.uid
-    //     && request.resource.data.text is string
-    //     && request.resource.data.text.size() > 0
-    //     && request.resource.data.text.size() <= 1000
-    //     && request.resource.data.sentAt == request.time
-    //     && get(/databases/$(database)/documents/matches/$(matchId))
-    //       .data.status == "accepted"
-    //     && isParticipant(
-    //       get(/databases/$(database)/documents/matches/$(matchId)).data
-    //     );
-    //
-    //   allow update, delete: if false;
-    // }
+      allow create: if isSignedIn()
+        && isAcceptedMatchParticipant(matchId)
+        && request.resource.data.keys()
+          .hasAll(["senderId", "text", "sentAt"])
+        && request.resource.data.keys()
+          .hasOnly(["senderId", "text", "sentAt"])
+        && request.resource.data.senderId == request.auth.uid
+        && request.resource.data.text is string
+        && request.resource.data.text.size() > 0
+        && request.resource.data.text.size() <= 1000
+        && request.resource.data.sentAt == request.time;
+
+      allow update, delete: if false;
+    }
   }
 
     // Private account details, including contact details.
