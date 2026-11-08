@@ -1,7 +1,6 @@
 import {
   collection,
   doc,
-  getDoc,
   getDocs,
   onSnapshot,
   query,
@@ -13,16 +12,8 @@ import {
 
 import { auth, db } from "../firebase.js";
 
-// Check whether the user has already applied
-export async function checkApplication(matchId) {
-  const snapshot = await getDoc(
-    doc(db, "matches", matchId)
-  );
-
-  return snapshot.exists();
-}
-
-// FR-020 and FR-021: Get applications sent by the current user
+// FR-009 and FR-016: requests the signed-in user sent, so Apply buttons
+// can show "Applied".
 export async function fetchSentRequests() {
   const user = auth.currentUser;
 
@@ -36,6 +27,31 @@ export async function fetchSentRequests() {
   );
 
   const snapshot = await getDocs(requestsQuery);
+
+  return snapshot.docs.map((matchDoc) => ({
+    id: matchDoc.id,
+    ...matchDoc.data(),
+  }));
+}
+
+// Every request or match between the signed-in student and one tutor,
+// whoever sent it. Tutor Profile uses it so a student doesn't send a
+// second request to a tutor who already applied to them or matched
+// with them (FR-022).
+export async function fetchMatchesWithTutor(tutorId) {
+  const user = auth.currentUser;
+
+  if (!user) {
+    throw new Error("Please log in first.");
+  }
+
+  const matchesQuery = query(
+    collection(db, "matches"),
+    where("studentId", "==", user.uid),
+    where("tutorId", "==", tutorId)
+  );
+
+  const snapshot = await getDocs(matchesQuery);
 
   return snapshot.docs.map((matchDoc) => ({
     id: matchDoc.id,
