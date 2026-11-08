@@ -205,6 +205,11 @@ function previewText(match) {
   background: var(--color-primary-light);
 }
 
+/* Keeps the avatar visible on the green selected row. */
+.match-row.selected .avatar {
+  background: var(--color-surface);
+}
+
 .match-row:focus-visible {
   outline: 2px solid var(--color-primary);
   outline-offset: -2px;
