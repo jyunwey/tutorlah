@@ -25,14 +25,12 @@ const STUDENT_LINKS = [
   { label: "Find Tutors", path: "/find-tutors" },
   { label: "Post Assignment", path: "/post-assignment" },
   { label: "My Matches", path: "/my-matches" },
-  { label: "Saved", path: "/saved" },
 ];
 
 const TUTOR_LINKS = [
   { label: "Home", path: "/home" },
   { label: "Find Assignments", path: "/find-assignments" },
   { label: "My Matches", path: "/my-matches" },
-  { label: "Saved", path: "/saved" },
 ];
 
 const links = computed(() => {
@@ -60,6 +58,7 @@ const roleLabel = computed(() =>
 
 const menuOpen = ref(false);
 const menuRoot = ref(null);
+const linksNav = ref(null);
 const isLoggingOut = ref(false);
 const logoutError = ref("");
 
@@ -94,7 +93,14 @@ async function handleLogout() {
   }
 }
 
+function revealActiveLink() {
+  linksNav.value
+    ?.querySelector(".router-link-active")
+    ?.scrollIntoView({ block: "nearest", inline: "nearest" });
+}
+
 watch(() => route.fullPath, closeMenu);
+watch([() => route.fullPath, links], revealActiveLink, { flush: "post" });
 
 onMounted(() => {
   document.addEventListener("click", handleOutsideClick);
@@ -119,7 +125,7 @@ onUnmounted(() => {
       <span>Tutor<span class="brand-accent">Lah</span></span>
     </RouterLink>
 
-    <nav v-if="currentAccount" class="links" aria-label="Main navigation">
+    <nav v-if="currentAccount" ref="linksNav" class="links" aria-label="Main navigation">
       <RouterLink v-for="link in links" :key="link.path" :to="link.path">
         {{ link.label }}
       </RouterLink>
@@ -319,7 +325,15 @@ button:focus-visible {
   .links {
     order: 3;
     flex-basis: 100%;
-    gap: 18px;
+    flex-wrap: nowrap;
+    gap: 10px;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .links a {
+    flex-shrink: 0;
+    font-size: 13px;
+    white-space: nowrap;
   }
 }
 </style>
