@@ -10,6 +10,7 @@ import { useCurrentAccount } from "../composables/useCurrentAccount.js";
 import { createSampleData } from "../constants/sampleMatches.js";
 import {
   acceptMatchRequest,
+  listenToAcceptedMatches,
   listenToIncomingRequests,
   rejectMatchRequest,
 } from "../services/matches.js";
@@ -21,9 +22,9 @@ import {
 } from "../utils/matchDisplay.js";
 
 // My Matches (FR-021 to FR-024).
-// The Requests tab (FR-022) loads and saves the `matches` collection in
-// Firestore. All Matches and the chat (FR-023, FR-024) still use
-// temporary sample data, and Send only changes what's on screen.
+// Requests and All Matches load the `matches` collection from Firestore.
+// Chat (FR-024) still uses temporary sample data, and Send only changes
+// what's on screen.
 
 const route = useRoute();
 const router = useRouter();
@@ -48,8 +49,10 @@ const requestsError = ref("");
 const respondingId = ref(null);
 const assignmentsById = ref({});
 
-// Accepted matches (SAMPLE DATA until FR-023 loads them from Firestore).
+// Accepted matches from Firestore (FR-023).
 const matchDocs = ref([]);
+const isLoadingMatches = ref(true);
+const matchesError = ref("");
 // Messages for each match, keyed by match ID (SAMPLE DATA, FR-024).
 const messagesByMatch = ref({});
 
@@ -164,6 +167,63 @@ function lastActivity(match) {
   return toDate(match.lastMessage?.sentAt ?? match.createdAt);
 }
 
+// FR-023: listen for accepted matches involving the current user. Keep the
+// existing selection when possible and show the first match on wide screens.
+watch(
+  [myId, account],
+  ([userId, currentAccount], _previousValues, onCleanup) => {
+    matchDocs.value = [];
+    matchesError.value = "";
+
+    const role = currentAccount?.role;
+
+    if (
+      !userId ||
+      (role !== "student" && role !== "tutor")
+    ) {
+      isLoadingMatches.value = false;
+      selectedId.value = null;
+      return;
+    }
+
+    isLoadingMatches.value = true;
+
+    const stopListening = listenToAcceptedMatches(
+      userId,
+      role,
+      (docs) => {
+        matchDocs.value = docs;
+        isLoadingMatches.value = false;
+
+        const selectedStillExists = docs.some(
+          (match) => match.id === selectedId.value
+        );
+
+        if (selectedId.value && !selectedStillExists) {
+          selectedId.value = null;
+        }
+
+        if (
+          !selectedId.value &&
+          window.matchMedia("(min-width: 761px)").matches
+        ) {
+          selectedId.value = sortedMatches.value[0]?.id ?? null;
+        }
+      },
+      (error) => {
+        console.error("Could not load matches:", error);
+        matchesError.value =
+          "We could not load your matches. Please refresh and try again.";
+        isLoadingMatches.value = false;
+      }
+    );
+
+    // Stops listening when the user or role changes, or the page closes.
+    onCleanup(stopListening);
+  },
+  { immediate: true }
+);
+
 const selectedMatch = computed(
   () => sortedMatches.value.find((match) => match.id === selectedId.value) ?? null
 );
@@ -178,14 +238,7 @@ watch(account, (currentAccount) => {
   }
 
   const sample = createSampleData(currentAccount, myId.value);
-  matchDocs.value = sample.matches;
   messagesByMatch.value = sample.messagesByMatch;
-
-  // Wide screens show the first chat straight away, like the prototype.
-  // Phones start on the list.
-  if (window.matchMedia("(min-width: 761px)").matches) {
-    selectedId.value = sortedMatches.value[0]?.id ?? null;
-  }
 });
 
 function findMatch(id) {
@@ -344,20 +397,28 @@ watch(activeTab, () => {
           role="tabpanel"
           aria-labelledby="tab-matches"
         >
-          <MatchList
-            class="list-panel"
-            :matches="sortedMatches"
-            :selected-id="selectedId"
-            :my-id="myId"
-            @select="selectedId = $event"
-          />
-          <ChatPanel
-            class="chat-panel"
-            :match="selectedMatch"
-            :messages="selectedMessages"
-            @send="sendMessage"
-            @back="selectedId = null"
-          />
+          <p v-if="isLoadingMatches" class="status">Loading matches...</p>
+
+          <p v-else-if="matchesError" class="status error" role="alert">
+            {{ matchesError }}
+          </p>
+
+          <template v-else>
+            <MatchList
+              class="list-panel"
+              :matches="sortedMatches"
+              :selected-id="selectedId"
+              :my-id="myId"
+              @select="selectedId = $event"
+            />
+            <ChatPanel
+              class="chat-panel"
+              :match="selectedMatch"
+              :messages="selectedMessages"
+              @send="sendMessage"
+              @back="selectedId = null"
+            />
+          </template>
         </div>
       </template>
     </div>
