@@ -2,6 +2,7 @@
 import AuthLayout from "../components/AuthLayout.vue";
 import { ref, computed } from "vue";
 import { useRouter, RouterLink } from "vue-router";
+import { Eye, EyeOff } from "lucide-vue-next";
 
 import {
   registerUser,
@@ -13,7 +14,9 @@ const firstName = ref("");
 const lastName = ref("");
 const email = ref("");
 const password = ref("");
-const role = ref("");
+const showPassword = ref(false);
+// FR-002: one role is selected by default, like the prototype (Annex 2).
+const role = ref("student");
 
 const message = ref("");
 const messageType = ref("");
@@ -248,14 +251,27 @@ async function handleRegistration() {
           <span class="required">*</span>
         </label>
 
-        <input
-          id="password"
-          v-model="password"
-          type="password"
-          minlength="8"
-          autocomplete="new-password"
-          required
-        />
+        <!-- FR-002: show/hide password, same as the Login page. -->
+        <div class="password-wrapper">
+          <input
+            id="password"
+            v-model="password"
+            :type="showPassword ? 'text' : 'password'"
+            minlength="8"
+            autocomplete="new-password"
+            required
+          />
+          <button
+            type="button"
+            class="password-toggle"
+            :aria-label="showPassword ? 'Hide password' : 'Show password'"
+            :aria-pressed="showPassword"
+            @click="showPassword = !showPassword"
+          >
+            <EyeOff v-if="showPassword" :size="20" />
+            <Eye v-else :size="20" />
+          </button>
+        </div>
 
         <div class="password-checklist">
           <p
@@ -391,6 +407,33 @@ select {
   border: 1px solid #d5dce5;
   border-radius: 6px;
   box-sizing: border-box;
+}
+
+.password-wrapper {
+  position: relative;
+}
+
+.password-wrapper input {
+  padding-right: 48px;
+}
+
+.password-toggle {
+  position: absolute;
+  top: 50%;
+  right: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+  border: none;
+  background: transparent;
+  color: #52658a;
+  cursor: pointer;
+  transform: translateY(-50%);
+}
+
+.password-toggle:hover {
+  color: #00875a;
 }
 
 .submit-btn {

@@ -81,6 +81,18 @@ export async function requestTutor(tutor, studentAccount) {
   const matchId = `${user.uid}_${tutor.id}`;
   const matchRef = doc(db, "matches", matchId);
 
+  // FR-009: the subject and level the student wants, so the tutor sees them
+  // in their Requests tab. Subjects this tutor teaches are shown first; if
+  // there are none in common, all of the student's subjects are shown.
+  const wantedSubjects = studentAccount.subjects ?? [];
+  const sharedSubjects = wantedSubjects.filter((subject) =>
+    tutor.subjects?.includes(subject)
+  );
+  const subject = (
+    sharedSubjects.length > 0 ? sharedSubjects : wantedSubjects
+  ).join(", ");
+  const level = studentAccount.level ?? "";
+
   await setDoc(matchRef, {
     status: "pending",
     senderId: user.uid,
@@ -91,6 +103,8 @@ export async function requestTutor(tutor, studentAccount) {
     studentLastName: studentAccount.lastName,
     tutorFirstName: tutor.firstName,
     tutorLastName: tutor.lastName,
+    ...(subject && { subject }),
+    ...(level && { level }),
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
   });

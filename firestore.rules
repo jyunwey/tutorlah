@@ -85,13 +85,20 @@ service cloud.firestore {
           "studentLastName",
           "tutorFirstName",
           "tutorLastName",
+          "subject",
+          "level",
           "createdAt",
           "updatedAt"
         ])
         && data.tutorFirstName is string
         && data.tutorLastName is string
         && data.get("studentFirstName", "") is string
-        && data.get("studentLastName", "") is string;
+        && data.get("studentLastName", "") is string
+        // FR-009: the subject and level the student wants (optional).
+        && data.get("subject", "") is string
+        && data.get("subject", "").size() <= 200
+        && data.get("level", "") is string
+        && data.get("level", "").size() <= 50;
     }
 
     function hasFinishedProfile() {

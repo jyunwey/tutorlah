@@ -209,6 +209,8 @@ Apply would try to overwrite the first, and the rules only let the recipient cha
 | `studentId`        | string    | yes      | UID of the student/parent (the sender or the recipient)      |
 | `tutorId`          | string    | yes      | UID of the tutor (the sender or the recipient)               |
 | `assignmentId`     | string    | FR-016 only | → `assignments/{id}`; not set for FR-009 requests         |
+| `subject`          | string    | FR-009 only | The subjects the student wants, e.g. `"Mathematics, Physics"`, copied from their profile (ones this tutor teaches first). Shown in the tutor's Requests tab. FR-016 uses the assignment's subject instead |
+| `level`            | string    | FR-009 only | The student's academic level, e.g. `"Secondary"`. Shown with `subject` |
 | `tutorFirstName`   | string    | yes      | Copied from `tutorProfiles/{tutorId}` (FR-009) or the tutor's own account (FR-016) |
 | `tutorLastName`    | string    | yes      | As above                                                     |
 | `studentFirstName` | string    | see note | Copied from the student's own account                       |

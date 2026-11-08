@@ -1,12 +1,14 @@
 <script setup>
 import {
   computed,
+  nextTick,
   onMounted,
   ref,
   watch,
 } from 'vue'
 import {
   RouterLink,
+  useRoute,
 } from 'vue-router'
 
 import AppNavBar from '../components/AppNavBar.vue'
@@ -54,6 +56,8 @@ const showFilters = ref(false)
 
 // FR-021: Tutor assignment applications
 const appliedAssignmentIds = ref([])
+// FR-022: assignments whose poster rejected my application
+const rejectedAssignmentIds = ref([])
 const applyingAssignmentIds = ref([])
 const isCheckingApplications = ref(false)
 const applicationStatusError = ref(false)
@@ -131,6 +135,33 @@ const isPageLoading = computed(() =>
   isLoading.value
   || isAccountLoading.value
   || isTutorProfileLoading.value
+)
+
+// FR-007: an assignment opened from a Home recommendation
+// (?assignment=<id>) is scrolled into view and highlighted, once the
+// list has finished loading and sorting.
+const route = useRoute()
+const highlightedId = ref(
+  typeof route.query.assignment === 'string'
+    ? route.query.assignment
+    : ''
+)
+let hasScrolledToHighlight = false
+
+watch(
+  isPageLoading,
+  async (loading) => {
+    if (loading || !highlightedId.value || hasScrolledToHighlight) {
+      return
+    }
+
+    hasScrolledToHighlight = true
+    await nextTick()
+    document
+      .getElementById(`assignment-${highlightedId.value}`)
+      ?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+  },
+  { immediate: true }
 )
 
 const pageErrorMessage = computed(() =>
@@ -352,6 +383,7 @@ async function loadAssignments() {
 async function loadAppliedAssignments() {
   if (!user.value || account.value?.role !== 'tutor') {
     appliedAssignmentIds.value = []
+    rejectedAssignmentIds.value = []
     isCheckingApplications.value = false
     applicationStatusError.value = false
     return
@@ -364,12 +396,15 @@ async function loadAppliedAssignments() {
   try {
     const sentRequests = await fetchSentRequests()
 
-    appliedAssignmentIds.value = sentRequests
-      .filter((match) =>
-        match.senderId === user.value.uid &&
-        match.tutorId === user.value.uid &&
-        Boolean(match.assignmentId)
-      )
+    const myApplications = sentRequests.filter((match) =>
+      match.senderId === user.value.uid &&
+      match.tutorId === user.value.uid &&
+      Boolean(match.assignmentId)
+    )
+
+    appliedAssignmentIds.value = myApplications.map((match) => match.assignmentId)
+    rejectedAssignmentIds.value = myApplications
+      .filter((match) => match.status === 'rejected')
       .map((match) => match.assignmentId)
 
   } catch (error) {
@@ -621,11 +656,14 @@ onMounted(loadAssignments)
                 assignment,
                 compatibility,
               } in rankedAssignments"
+              :id="`assignment-${assignment.id}`"
               :key="assignment.id"
+              :class="{ highlighted: assignment.id === highlightedId }"
               :assignment="assignment"
               :compatibility="compatibility"
               :show-apply="account?.role === 'tutor'"
               :applied="appliedAssignmentIds.includes(assignment.id)"
+              :rejected="rejectedAssignmentIds.includes(assignment.id)"
               :is-applying="applyingAssignmentIds.includes(assignment.id)"
               :disabled="
                 isCheckingApplications ||
@@ -713,6 +751,12 @@ onMounted(loadAssignments)
 .assignment-list {
   display: grid;
   gap: 16px;
+}
+
+/* FR-007: the assignment opened from a Home recommendation. */
+.assignment-list .highlighted {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
 }
 
 .notice {
