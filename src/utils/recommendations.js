@@ -14,7 +14,7 @@ export function recommendTutors(tutors, student) {
     tutors.map((tutor) => ({
       item: tutor,
       compatibility: getCompatibility(tutor, criteria),
-      tieBreak: typeof tutor.rating === "number" ? tutor.rating : -1,
+      tieBreak: 0,
     })),
   );
 }

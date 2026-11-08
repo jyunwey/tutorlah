@@ -52,7 +52,6 @@ const TUTORS = [
     lessonModes: ["In-person", "Online"],
     qualification: "Ex-MOE Teacher",
     yearsOfExperience: 6,
-    rating: 4.8,
     bio: "Former MOE teacher with 6 years of experience preparing students for O and A Levels.",
   },
   {
@@ -68,7 +67,6 @@ const TUTORS = [
     lessonModes: ["Online"],
     qualification: "NUS Undergraduate",
     yearsOfExperience: 2,
-    rating: 4.5,
     bio: "NUS English Literature undergraduate who makes comprehension and composition fun.",
   },
   {
@@ -84,7 +82,6 @@ const TUTORS = [
     lessonModes: ["In-person"],
     qualification: "NTU Graduate",
     yearsOfExperience: 8,
-    rating: 4.9,
     bio: "Full-time tutor specialising in H2 Chemistry and Biology.",
   },
   {
@@ -100,7 +97,6 @@ const TUTORS = [
     lessonModes: ["In-person"],
     qualification: "Polytechnic Graduate",
     yearsOfExperience: 3,
-    rating: 4.3,
     bio: "Polytechnic graduate who helps primary school students build strong foundations.",
   },
   {
@@ -116,7 +112,6 @@ const TUTORS = [
     lessonModes: ["In-person", "Online"],
     qualification: "NIE-trained Teacher",
     yearsOfExperience: 5,
-    rating: 4.6,
     bio: "Uses hands-on activities and real-life examples to explain concepts.",
   },
   {
@@ -132,7 +127,6 @@ const TUTORS = [
     lessonModes: ["In-person", "Online"],
     qualification: "SMU Graduate",
     yearsOfExperience: 4,
-    rating: 4.7,
     bio: "Specialises in PSLE and O Level Chinese oral and composition.",
   },
 ];

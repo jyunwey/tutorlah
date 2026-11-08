@@ -130,7 +130,7 @@ created by [scripts/seedTutors.js](../scripts/seedTutors.js) as real tutor accou
 | `hourlyRate`     | number    | yes      | SGD per hour                                             |
 | `availability`   | string[]  | yes      | Values from `AVAILABILITY`                               |
 | `teachingStyles` | string[]  | yes      | Values from `TEACHING_STYLES`                            |
-| `rating`         | number    | no       | Seeded demo tutors only (0–5), since reviews are not implemented. The rules only let `@tutorlah.test` accounts set it; tutors without one show as "New tutor". |
+| `rating`         | number    | no       | Not used. The app no longer shows ratings, since reviews are not implemented. Older seeded `@tutorlah.test` profiles may still have this field; the rules allow it only on those accounts. |
 | `bio`            | string    | no       | Shown in the About tab of the Tutor Profile (FR-013)     |
 | `qualification`  | string    | no       | Short, e.g. `"Ex-MOE Teacher"`, `"NUS Graduate"` (FR-008) |
 | `yearsOfExperience` | number | no       | Shown as "6 years experience" on the tutor card (FR-008) |
@@ -150,7 +150,6 @@ Example:
   "hourlyRate": 45,
   "availability": ["Weekday evenings", "Weekends"],
   "teachingStyles": ["Exam-focused", "Structured"],
-  "rating": 4.8,
   "bio": "Former MOE teacher with 6 years of experience.",
   "qualification": "Ex-MOE Teacher",
   "yearsOfExperience": 6,
