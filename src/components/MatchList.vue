@@ -50,6 +50,15 @@ function previewText(match) {
   const prefix = match.lastMessage.senderId === props.myId ? "You: " : "";
   return prefix + match.lastMessage.text;
 }
+
+function matchContextLabel(match) {
+  const lesson = [match.level, match.subject]
+    .map((value) => (typeof value === "string" ? value.trim() : ""))
+    .filter(Boolean)
+    .join(" ");
+
+  return lesson || getRoleLabel(match.otherUser.role);
+}
 </script>
 
 <template>
@@ -100,7 +109,7 @@ function previewText(match) {
                 {{ formatListTime(match.lastMessage?.sentAt ?? match.createdAt) }}
               </span>
             </span>
-            <span class="role">{{ getRoleLabel(match.otherUser.role) }}</span>
+            <span class="role">{{ matchContextLabel(match) }}</span>
             <span class="preview">{{ previewText(match) }}</span>
           </span>
         </button>
@@ -242,6 +251,12 @@ function previewText(match) {
 .preview {
   color: var(--color-text-muted);
   font-size: 0.9rem;
+}
+
+.role {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 /* One line, cut off with "..." */
