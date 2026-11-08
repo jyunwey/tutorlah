@@ -263,7 +263,10 @@ Example (FR-009, after the tutor accepted and the student sent a message):
 
 Chat messages (FR-024). Only the two users in the match can read or send them, and only once
 the match is `"accepted"` (story 33). Sending a message also updates `lastMessage` and
-`updatedAt` on the match, in the same batch.
+`updatedAt` on the match, in the same batch. Messages can't be edited or deleted.
+
+The open chat listens to `matches/{matchId}/messages` ordered by `sentAt`, oldest first, so new
+messages from either person appear without refreshing.
 
 | Field      | Type      | Required | Notes                                        |
 | ---------- | --------- | -------- | -------------------------------------------- |
@@ -295,6 +298,7 @@ The rules are in [firestore.rules](../firestore.rules). Summary:
   `studentId == request.auth.uid`; only that student can edit or delete it.
 - `matches` and messages (📝 Sprint 2, NFR-006/007): only the student and tutor in a match can
   read it; only the sender can create a request, as `"pending"`; only the recipient can accept or
-  reject it; messages only once it is `"accepted"`.
+  reject it; once it is `"accepted"`, either of them can send messages and update only
+  `lastMessage` and `updatedAt` on the match.
 
 Once deployed, any collection without a rule is blocked, so add a rule before using a new one.

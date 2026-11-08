@@ -4,7 +4,6 @@ rules_version = '2';
 //
 // Any collection without a rule here is blocked.
 // Add a rule before using a new collection.
-// TODO (Sprint 2): rules for requests, matches and messages.
 
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -112,66 +111,61 @@ service cloud.firestore {
         ])
       && request.resource.data.updatedAt == request.time;
 
-    // TODO (FR-026): Add a separate update permission for messaging.
-    // Once a match is accepted, either participant should be able to update
-    // lastMessage and updatedAt without changing the match status or IDs.
-    //
-    // This must be coordinated with the messages subcollection rules
-    // to ensure lastMessage corresponds to a valid message.
-    //
-    // Proposed additional condition for allow update:
-    //
-    // allow update: if isSignedIn()
-    //   && hasValidParticipants(resource.data)
-    //   && isParticipant(resource.data)
-    //   && resource.data.status == "accepted"
-    //   && request.resource.data.status == "accepted"
-    //   && request.resource.data.diff(resource.data)
-    //     .affectedKeys()
-    //     .hasOnly(["lastMessage", "updatedAt"])
-    //   && request.resource.data.lastMessage.keys()
-    //     .hasAll(["text", "senderId", "sentAt"])
-    //   && request.resource.data.lastMessage.text is string
-    //   && request.resource.data.lastMessage.text.size() > 0
-    //   && request.resource.data.lastMessage.text.size() <= 1000
-    //   && request.resource.data.lastMessage.senderId == request.auth.uid
-    //   && request.resource.data.lastMessage.sentAt == request.time
-    //   && request.resource.data.updatedAt == request.time;
+    // FR-024: sending a message also updates the match's lastMessage, so
+    // All Matches can show the preview and sort by the newest message.
+    // Either user in an accepted match can do this, and nothing else
+    // about the match can change.
+    allow update: if isSignedIn()
+      && hasValidParticipants(resource.data)
+      && isParticipant(resource.data)
+      && resource.data.status == "accepted"
+      && request.resource.data.diff(resource.data)
+        .affectedKeys()
+        .hasOnly(["lastMessage", "updatedAt"])
+      && isValidLastMessage(request.resource.data.lastMessage)
+      && request.resource.data.updatedAt == request.time;
+
+    function isValidMessageText(text) {
+      return text is string
+        && text.size() > 0
+        && text.size() <= 1000;
+    }
+
+    function isValidLastMessage(lastMessage) {
+      return lastMessage is map
+        && lastMessage.keys().hasOnly(["text", "senderId", "sentAt"])
+        && lastMessage.keys().hasAll(["text", "senderId", "sentAt"])
+        && isValidMessageText(lastMessage.text)
+        && lastMessage.senderId == request.auth.uid
+        && lastMessage.sentAt == request.time;
+    }
 
     // Prevent users from deleting requests or accepted matches.
     // Rejected requests are retained with status "rejected".
     allow delete: if false;
 
-    // TODO (FR-026): Add rules for the messages subcollection.
-    // Only the student and tutor in an accepted match can read/send messages.
-    // Validate senderId, text (1–1000 characters) and sentAt.
+    // FR-024 and story 33: chat messages. Only the two users in the match
+    // can read or send them, and only once the match is accepted.
+    // Messages can't be edited or deleted. No attachments: text only.
+    match /messages/{messageId} {
+      function isInAcceptedMatch() {
+        let matchData = get(/databases/$(database)/documents/matches/$(matchId)).data;
+        return hasValidParticipants(matchData)
+          && isParticipant(matchData)
+          && matchData.status == "accepted";
+      }
 
-    // PROPOSED (FR-026): Messages subcollection rules.
-    // match /messages/{messageId} {
-    //   allow read: if isSignedIn()
-    //     && hasValidParticipants(
-    //       get(/databases/$(database)/documents/matches/$(matchId)).data
-    //     )
-    //     && isParticipant(
-    //       get(/databases/$(database)/documents/matches/$(matchId)).data
-    //     )
-    //     && get(/databases/$(database)/documents/matches/$(matchId))
-    //       .data.status == "accepted";
-    //
-    //   allow create: if isSignedIn()
-    //     && request.resource.data.senderId == request.auth.uid
-    //     && request.resource.data.text is string
-    //     && request.resource.data.text.size() > 0
-    //     && request.resource.data.text.size() <= 1000
-    //     && request.resource.data.sentAt == request.time
-    //     && get(/databases/$(database)/documents/matches/$(matchId))
-    //       .data.status == "accepted"
-    //     && isParticipant(
-    //       get(/databases/$(database)/documents/matches/$(matchId)).data
-    //     );
-    //
-    //   allow update, delete: if false;
-    // }
+      allow read: if isSignedIn() && isInAcceptedMatch();
+
+      allow create: if isSignedIn()
+        && isInAcceptedMatch()
+        && request.resource.data.keys().hasOnly(["senderId", "text", "sentAt"])
+        && request.resource.data.senderId == request.auth.uid
+        && isValidMessageText(request.resource.data.text)
+        && request.resource.data.sentAt == request.time;
+
+      allow update, delete: if false;
+    }
   }
 
     // Private account details, including contact details.

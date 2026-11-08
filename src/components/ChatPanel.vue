@@ -20,6 +20,16 @@ const props = defineProps({
     type: Array,
     default: () => [],
   },
+  isLoading: {
+    type: Boolean,
+    default: false,
+  },
+  // Shown above the message box when the chat can't load or a message
+  // can't be sent.
+  errorMessage: {
+    type: String,
+    default: "",
+  },
 });
 
 const emit = defineEmits(["send", "back"]);
@@ -34,13 +44,20 @@ function isMine(message) {
   return message.senderId !== props.match.otherUser.id;
 }
 
+// The box clears straight away. If the message can't be sent,
+// MyMatchesView calls the second argument to put the text back.
 function send() {
   if (!canSend.value) {
     return;
   }
 
-  emit("send", draft.value.trim());
+  const text = draft.value.trim();
   draft.value = "";
+  emit("send", text, () => {
+    if (draft.value === "") {
+      draft.value = text;
+    }
+  });
 }
 
 // Show the newest message when a chat opens or a message arrives.
@@ -91,7 +108,9 @@ watch(
       </header>
 
       <ol ref="messageList" class="message-list" aria-live="polite">
-        <li v-if="messages.length === 0" class="no-messages">
+        <li v-if="isLoading" class="no-messages">Loading messages...</li>
+
+        <li v-else-if="messages.length === 0" class="no-messages">
           You're matched! Send a message to get started.
         </li>
 
@@ -112,6 +131,10 @@ watch(
           </div>
         </li>
       </ol>
+
+      <p v-if="errorMessage" class="chat-error" role="alert">
+        {{ errorMessage }}
+      </p>
 
       <form class="composer" @submit.prevent="send">
         <label class="visually-hidden" for="chat-message">Message</label>
@@ -261,6 +284,14 @@ watch(
   margin: 0;
   color: var(--color-text-muted);
   font-size: 0.8rem;
+}
+
+.chat-error {
+  margin: 0;
+  padding: 10px 18px;
+  background: #fdecea;
+  color: var(--color-error);
+  font-size: 0.95rem;
 }
 
 .composer {
