@@ -125,6 +125,24 @@ service cloud.firestore {
       && isValidLastMessage(request.resource.data.lastMessage)
       && request.resource.data.updatedAt == request.time;
 
+    // FR-024: opening a chat saves when each user last read it, so the
+    // other person sees a double tick. Each user can only set their own
+    // time, to now, and nothing else about the match can change.
+    allow update: if isSignedIn()
+      && hasValidParticipants(resource.data)
+      && isParticipant(resource.data)
+      && resource.data.status == "accepted"
+      && request.resource.data.diff(resource.data)
+        .affectedKeys()
+        .hasOnly(["readAt", "updatedAt"])
+      && request.resource.data.readAt is map
+      && request.resource.data.readAt
+        .diff(resource.data.get("readAt", {}))
+        .affectedKeys()
+        .hasOnly([request.auth.uid])
+      && request.resource.data.readAt[request.auth.uid] == request.time
+      && request.resource.data.updatedAt == request.time;
+
     function isValidMessageText(text) {
       return text is string
         && text.size() > 0

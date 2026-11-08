@@ -214,6 +214,7 @@ Apply would try to overwrite the first, and the rules only let the recipient cha
 | `studentFirstName` | string    | see note | Copied from the student's own account                       |
 | `studentLastName`  | string    | see note | As above                                                     |
 | `lastMessage`      | map       | no       | `{ text, senderId, sentAt }` of the newest message; set when a message is sent. Used to sort All Matches and show the preview (FR-023) |
+| `readAt`           | map       | no       | `{ [uid]: timestamp }`: when each user last read the chat. A message shows two ticks once the other person's time is after it was sent, one tick before (FR-024) |
 | `createdAt`        | timestamp | yes      | `serverTimestamp()`; shown as the request date               |
 | `updatedAt`        | timestamp | yes      | `serverTimestamp()`; update on every write                   |
 
@@ -299,6 +300,6 @@ The rules are in [firestore.rules](../firestore.rules). Summary:
 - `matches` and messages (📝 Sprint 2, NFR-006/007): only the student and tutor in a match can
   read it; only the sender can create a request, as `"pending"`; only the recipient can accept or
   reject it; once it is `"accepted"`, either of them can send messages and update only
-  `lastMessage` and `updatedAt` on the match.
+  `lastMessage` and `updatedAt` on the match, and set their own time in `readAt` (to now).
 
 Once deployed, any collection without a rule is blocked, so add a rule before using a new one.

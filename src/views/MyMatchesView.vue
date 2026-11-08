@@ -1,5 +1,5 @@
 <script setup>
-import { computed, ref, watch } from "vue";
+import { computed, onMounted, onUnmounted, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 
 import AppNavBar from "../components/AppNavBar.vue";
@@ -14,7 +14,11 @@ import {
   rejectMatchRequest,
 } from "../services/matches.js";
 import { fetchAssignment } from "../services/assignments.js";
-import { listenToMessages, sendChatMessage } from "../services/messages.js";
+import {
+  listenToMessages,
+  markChatRead,
+  sendChatMessage,
+} from "../services/messages.js";
 import {
   getFullName,
   getOtherUser,
@@ -300,6 +304,53 @@ async function respondToRequest(id, accept) {
     respondingId.value = null;
   }
 }
+
+// FR-024: when the open chat has a new message from the other person,
+// save that I've read it, so they see a double tick. Only counts while
+// the chat is on screen: All Matches tab, chat open, browser tab visible.
+let lastReadMessageId = null;
+
+function markOpenChatRead() {
+  const match = selectedMatch.value;
+
+  if (
+    !match ||
+    activeTab.value !== "matches" ||
+    document.visibilityState !== "visible"
+  ) {
+    return;
+  }
+
+  const newestFromThem = messages.value.findLast(
+    (message) => message.senderId !== myId.value
+  );
+
+  if (!newestFromThem || newestFromThem.id === lastReadMessageId) {
+    return;
+  }
+
+  const myReadAt = toDate(match.readAt?.[myId.value]);
+
+  if (myReadAt && myReadAt >= toDate(newestFromThem.sentAt)) {
+    return;
+  }
+
+  // Remembered so the same message isn't saved as read twice.
+  lastReadMessageId = newestFromThem.id;
+  markChatRead(match.id).catch((error) => {
+    console.error("Could not mark chat as read:", error);
+  });
+}
+
+watch([selectedId, messages, activeTab], markOpenChatRead);
+
+onMounted(() => {
+  document.addEventListener("visibilitychange", markOpenChatRead);
+});
+
+onUnmounted(() => {
+  document.removeEventListener("visibilitychange", markOpenChatRead);
+});
 
 // FR-024: save the message. It shows straight away, and the list
 // preview updates once Firestore has it.

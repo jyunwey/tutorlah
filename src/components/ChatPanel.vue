@@ -6,6 +6,7 @@ import {
   formatTime,
   getFullName,
   getRoleLabel,
+  toDate,
 } from "../utils/matchDisplay.js";
 
 // FR-024: text messages between two matched users. The send button is
@@ -43,6 +44,31 @@ const canSend = computed(() => draft.value.trim() !== "");
 function isMine(message) {
   return message.senderId !== props.match.otherUser.id;
 }
+
+// FR-024: my messages show a clock while saving, one tick once sent, and
+// two ticks once the other person has opened the chat after it arrived.
+const TICK_LABELS = {
+  sending: "Sending",
+  sent: "Sent",
+  read: "Read",
+};
+
+function getTickStatus(message) {
+  if (message.isPending) {
+    return "sending";
+  }
+
+  const theirReadAt = toDate(props.match.readAt?.[props.match.otherUser.id]);
+
+  return theirReadAt && theirReadAt >= toDate(message.sentAt) ? "read" : "sent";
+}
+
+const messageRows = computed(() =>
+  props.messages.map((message) => {
+    const mine = isMine(message);
+    return { ...message, mine, tickStatus: mine ? getTickStatus(message) : null };
+  })
+);
 
 // The box clears straight away. If the message can't be sent,
 // MyMatchesView calls the second argument to put the text back.
@@ -115,19 +141,46 @@ watch(
         </li>
 
         <li
-          v-for="message in messages"
+          v-for="message in messageRows"
           :key="message.id"
           class="message"
-          :class="isMine(message) ? 'mine' : 'theirs'"
+          :class="message.mine ? 'mine' : 'theirs'"
         >
           <InitialsAvatar
-            v-if="!isMine(message)"
+            v-if="!message.mine"
             :person="match.otherUser"
             :size="36"
           />
           <div class="bubble-group">
             <p class="bubble">{{ message.text }}</p>
-            <p class="time">{{ formatTime(message.sentAt) }}</p>
+            <p class="time">
+              {{ formatTime(message.sentAt) }}
+              <span
+                v-if="message.mine"
+                class="ticks"
+                :class="message.tickStatus"
+                :title="TICK_LABELS[message.tickStatus]"
+              >
+                <svg
+                  v-if="message.tickStatus === 'sending'"
+                  viewBox="0 0 16 16"
+                  aria-hidden="true"
+                >
+                  <circle cx="8" cy="8" r="5.5" />
+                  <path d="M8 5v3.2l2 1.3" />
+                </svg>
+                <svg v-else viewBox="0 0 20 16" aria-hidden="true">
+                  <path d="M1.5 8.5 5 12l6.5-7.5" />
+                  <path
+                    v-if="message.tickStatus === 'read'"
+                    d="m8 11 1 1 6.5-7.5"
+                  />
+                </svg>
+                <span class="visually-hidden">
+                  {{ TICK_LABELS[message.tickStatus] }}
+                </span>
+              </span>
+            </p>
           </div>
         </li>
       </ol>
@@ -281,9 +334,39 @@ watch(
 }
 
 .time {
+  display: flex;
+  align-items: center;
+  gap: 4px;
   margin: 0;
   color: var(--color-text-muted);
   font-size: 0.8rem;
+}
+
+.ticks {
+  display: inline-flex;
+}
+
+.ticks svg {
+  height: 14px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.ticks.sending svg {
+  width: 14px;
+}
+
+.ticks.sent svg,
+.ticks.read svg {
+  width: 18px;
+}
+
+/* Read: two green ticks, like the prototype. */
+.ticks.read {
+  color: var(--color-primary);
 }
 
 .chat-error {
