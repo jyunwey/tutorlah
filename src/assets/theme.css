@@ -8,7 +8,11 @@
   --color-text: #1f2a30;
   --color-text-muted: #5b6770;
   --color-border: #e3e7eb;
-  --color-bg: #f5f7f8;
+  /* Page background: the mint gradient from the Home page. Put it on each
+     page's outer element: background: var(--page-background);
+     --color-bg is the same mint as one flat colour. */
+  --page-background: linear-gradient(135deg, #f0fcf8, #f8fdfc 55%, #eafbf5);
+  --color-bg: #f3fbf8;
   --color-surface: #ffffff;
   --color-surface-muted: #f3f5f6;
   --color-ring-track: #e4ebe8;

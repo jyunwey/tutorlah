@@ -404,7 +404,7 @@ onMounted(async () => {
   min-height: 100vh;
   padding: 24px 20px 32px;
   box-sizing: border-box;
-  background: var(--color-bg);
+  background: var(--page-background);
   color: var(--color-text);
   font-family: var(--font-sans);
 }

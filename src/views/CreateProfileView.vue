@@ -135,7 +135,7 @@ onUnmounted(() => {
   min-height: 100vh;
   padding: 24px;
   box-sizing: border-box;
-  background: linear-gradient(135deg, #f0fcf8, #f8fdfc 55%, #eafbf5);
+  background: var(--page-background);
   color: #11143d;
   font-family: Arial, Helvetica, sans-serif;
 }
