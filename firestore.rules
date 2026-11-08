@@ -73,6 +73,64 @@ service cloud.firestore {
         );
     }
 
+    function hasAllowedRequestFields(data) {
+      return data.keys().hasOnly([
+          "status",
+          "senderId",
+          "recipientId",
+          "studentId",
+          "tutorId",
+          "assignmentId",
+          "studentFirstName",
+          "studentLastName",
+          "tutorFirstName",
+          "tutorLastName",
+          "subject",
+          "level",
+          "createdAt",
+          "updatedAt"
+        ])
+        && data.tutorFirstName is string
+        && data.tutorLastName is string
+        && data.get("studentFirstName", "") is string
+        && data.get("studentLastName", "") is string
+        // FR-009: the subject and level the student wants (optional).
+        && data.get("subject", "") is string
+        && data.get("subject", "").size() <= 200
+        && data.get("level", "") is string
+        && data.get("level", "").size() <= 50;
+    }
+
+    function hasFinishedProfile() {
+      return get(
+        /databases/$(database)/documents/users/$(request.auth.uid)
+      ).data.onboardingComplete == true;
+    }
+
+    function isDirectTutorRequest(id, data) {
+      return !("assignmentId" in data)
+        && data.senderId == data.studentId
+        && id == data.studentId + "_" + data.tutorId
+        && currentUserRole() == "student"
+        && exists(
+          /databases/$(database)/documents/tutorProfiles/$(data.tutorId)
+        );
+    }
+
+    function isAssignmentApplication(id, data) {
+      return "assignmentId" in data
+        && data.assignmentId is string
+        && data.senderId == data.tutorId
+        && id == data.assignmentId + "_" + data.tutorId
+        && currentUserRole() == "tutor"
+        && get(
+          /databases/$(database)/documents/assignments/$(data.assignmentId)
+        ).data.studentId == data.studentId
+        && get(
+          /databases/$(database)/documents/assignments/$(data.assignmentId)
+        ).data.status == "open";
+    }
+
     // Read an individual existing request
     allow get: if isSignedIn()
       && hasValidParticipants(resource.data)
@@ -91,6 +149,12 @@ service cloud.firestore {
       && hasValidParticipants(request.resource.data)
       && request.auth.uid == request.resource.data.senderId
       && request.resource.data.status == "pending"
+      && hasAllowedRequestFields(request.resource.data)
+      && hasFinishedProfile()
+      && (
+        isDirectTutorRequest(matchId, request.resource.data)
+        || isAssignmentApplication(matchId, request.resource.data)
+      )
       && request.resource.data.createdAt == request.time
       && request.resource.data.updatedAt == request.time;
 
@@ -109,6 +173,17 @@ service cloud.firestore {
           "studentFirstName",
           "studentLastName"
         ])
+      && (
+        !request.resource.data.diff(resource.data)
+          .affectedKeys()
+          .hasAny(["studentFirstName", "studentLastName"])
+        || (
+          request.auth.uid == resource.data.studentId
+          && request.resource.data.status == "accepted"
+          && request.resource.data.studentFirstName is string
+          && request.resource.data.studentLastName is string
+        )
+      )
       && request.resource.data.updatedAt == request.time;
 
     // FR-024: sending a message also updates the match's lastMessage, so

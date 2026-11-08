@@ -41,6 +41,8 @@ const isLoading = ref(true);
 const errorMessage = ref("");
 
 const applied = ref(false);
+// FR-022: this tutor rejected my request.
+const rejected = ref(false);
 const isApplying = ref(false);
 const isCheckingApplication = ref(true);
 const applicationError = ref("");
@@ -134,6 +136,7 @@ watch(
     const currentCheck = ++applicationCheckId;
 
     applied.value = false;
+    rejected.value = false;
     relationship.value = "";
     applicationError.value = "";
     applicationStatusError.value = false;
@@ -157,10 +160,12 @@ watch(
       if (currentCheck !== applicationCheckId) return;
 
       // FR-009: I already sent this tutor a request.
-      applied.value = matches.some(
+      const myRequest = matches.find(
         (match) =>
           match.senderId === user.value.uid && !match.assignmentId
       );
+      applied.value = Boolean(myRequest);
+      rejected.value = myRequest?.status === "rejected";
 
       if (matches.some((match) => match.status === "accepted")) {
         relationship.value = "matched";
@@ -327,17 +332,20 @@ onMounted(async () => {
             v-else
             type="button"
             class="apply-btn"
+            :class="{ rejected }"
             :disabled="applied || isApplying || isCheckingApplication || applicationStatusError"
             @click="handleApply"
           >
             {{
-              applied
-                ? "Applied"
-                : isApplying
-                  ? "Applying..."
-                  : isCheckingApplication
-                    ? "Checking..."
-                    : "Apply"
+              rejected
+                ? "Rejected"
+                : applied
+                  ? "Applied"
+                  : isApplying
+                    ? "Applying..."
+                    : isCheckingApplication
+                      ? "Checking..."
+                      : "Apply"
             }}
           </button>
 
@@ -404,7 +412,7 @@ onMounted(async () => {
   min-height: 100vh;
   padding: 24px 20px 32px;
   box-sizing: border-box;
-  background: var(--color-bg);
+  background: var(--page-background);
   color: var(--color-text);
   font-family: var(--font-sans);
 }
@@ -641,6 +649,12 @@ onMounted(async () => {
   background: #e5e7eb;
   color: #6b7280;
   cursor: not-allowed;
+}
+
+/* FR-022: this tutor rejected my request. */
+.apply-btn.rejected:disabled {
+  background: #fdecea;
+  color: var(--color-error);
 }
 
 .application-message {

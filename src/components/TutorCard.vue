@@ -22,6 +22,11 @@ const props = defineProps({
     type: Boolean,
     default: false,
   },
+  // FR-022: the tutor rejected my request.
+  rejected: {
+    type: Boolean,
+    default: false,
+  },
   isApplying: {
     type: Boolean,
     default: false,
@@ -81,10 +86,19 @@ const credentials = computed(() => formatCredentials(props.tutor));
       <button
         type="button"
         class="apply-btn"
-        :disabled="disabled || applied || isApplying"
+        :class="{ rejected }"
+        :disabled="disabled || applied || rejected || isApplying"
         @click="$emit('apply', tutor)"
       >
-        {{ applied ? "Applied" : isApplying ? "Applying..." : "Apply" }}
+        {{
+          rejected
+            ? "Rejected"
+            : applied
+              ? "Applied"
+              : isApplying
+                ? "Applying..."
+                : "Apply"
+        }}
       </button>
     </div>
   </article>
@@ -228,6 +242,13 @@ const credentials = computed(() => formatCredentials(props.tutor));
   color: #6b7280;
   border-color: #e5e7eb;
   cursor: not-allowed;
+}
+
+/* FR-022: the tutor rejected this request. */
+.actions .apply-btn.rejected:disabled {
+  background: #fdecea;
+  color: var(--color-error);
+  border-color: #fdecea;
 }
 
 

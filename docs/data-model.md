@@ -32,8 +32,8 @@ assignments/{id}
 | `users`         | Firebase Auth `uid` | ✅ Implemented | Owner only            | Private account details + role                  |
 | `tutorProfiles` | Tutor's `uid`       | ✅ Implemented | Any signed-in user    | Public tutor info shown on Find Tutors          |
 | `assignments`   | auto-ID             | ✅ Implemented | Any signed-in user    | A tuition request posted by a student           |
-| `matches`       | Fixed ID (see below) | 📝 Proposed   | The two users in it   | A request between a student and a tutor; becomes a match when accepted |
-| `matches/{id}/messages` | auto-ID     | 📝 Proposed    | The two users in it   | Chat messages between matched users             |
+| `matches`       | Fixed ID (see below) | ✅ Implemented | The two users in it   | A request between a student and a tutor; becomes a match when accepted |
+| `matches/{id}/messages` | auto-ID     | ✅ Implemented | The two users in it   | Chat messages between matched users             |
 
 ### Public vs private data (NFR-007)
 
@@ -185,7 +185,7 @@ posted it can edit or delete it.
 
 ---
 
-## `matches/{matchId}` 📝
+## `matches/{matchId}` ✅
 
 One document per request between a student/parent and a tutor. It starts as a **request**
 (`"pending"`) and becomes a **match** when the person who received it accepts (FR-022).
@@ -209,6 +209,8 @@ Apply would try to overwrite the first, and the rules only let the recipient cha
 | `studentId`        | string    | yes      | UID of the student/parent (the sender or the recipient)      |
 | `tutorId`          | string    | yes      | UID of the tutor (the sender or the recipient)               |
 | `assignmentId`     | string    | FR-016 only | → `assignments/{id}`; not set for FR-009 requests         |
+| `subject`          | string    | FR-009 only | The subjects the student wants, e.g. `"Mathematics, Physics"`, copied from their profile (ones this tutor teaches first). Shown in the tutor's Requests tab. FR-016 uses the assignment's subject instead |
+| `level`            | string    | FR-009 only | The student's academic level, e.g. `"Secondary"`. Shown with `subject` |
 | `tutorFirstName`   | string    | yes      | Copied from `tutorProfiles/{tutorId}` (FR-009) or the tutor's own account (FR-016) |
 | `tutorLastName`    | string    | yes      | As above                                                     |
 | `studentFirstName` | string    | see note | Copied from the student's own account                       |
@@ -260,7 +262,7 @@ Example (FR-009, after the tutor accepted and the student sent a message):
 }
 ```
 
-### `matches/{matchId}/messages/{messageId}` 📝
+### `matches/{matchId}/messages/{messageId}` ✅
 
 Chat messages (FR-024). Only the two users in the match can read or send them, and only once
 the match is `"accepted"` (story 33). Sending a message also updates `lastMessage` and
@@ -297,9 +299,20 @@ The rules are in [firestore.rules](../firestore.rules). Summary:
   only the listed fields are allowed.
 - `assignments`: any signed-in user can read; only a student can create one, with
   `studentId == request.auth.uid`; only that student can edit or delete it.
-- `matches` and messages (📝 Sprint 2, NFR-006/007): only the student and tutor in a match can
-  read it; only the sender can create a request, as `"pending"`; only the recipient can accept or
-  reject it; once it is `"accepted"`, either of them can send messages and update only
-  `lastMessage` and `updatedAt` on the match, and set their own time in `readAt` (to now).
+- `matches` (NFR-006/007): only the student and tutor in it can read it, and queries must filter
+  on `senderId`, `recipientId`, `studentId` or `tutorId` equal to the signed-in user. Only a user
+  with a finished profile can send a request, as `"pending"`, using the fixed document ID and only
+  the fields listed above. A direct request (FR-009) must come from a student to a tutor who has a
+  `tutorProfiles` document. An application (FR-016) must come from a tutor, for an `"open"`
+  assignment, sent to the student who posted it. Only the recipient can accept or reject, once;
+  only the student can add the student names, when accepting. Once accepted, either user can
+  update `lastMessage` and `updatedAt`, or set their own time in `readAt` (to now), and nothing
+  else. Nobody can delete a request.
+- `matches/{id}/messages` (NFR-006/007): only the two users in an `"accepted"` match can read or
+  send messages. A message has only `senderId` (the signed-in user), `text` (1 to 1000
+  characters) and `sentAt` (`serverTimestamp()`), and cannot be edited or deleted.
+
+`npm run test:rules` checks these rules in the Firestore emulator
+([tests/firestore.rules.test.js](../tests/firestore.rules.test.js)). It needs Java 21 or newer.
 
 Once deployed, any collection without a rule is blocked, so add a rule before using a new one.
