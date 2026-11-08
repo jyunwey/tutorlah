@@ -1,6 +1,6 @@
 // Display helpers for the My Matches page (FR-021 to FR-024).
 
-// Firestore returns Timestamps; the sample data uses plain Dates.
+// Firestore returns Timestamps; anything else is treated as a date.
 export function toDate(value) {
   if (!value) {
     return null;

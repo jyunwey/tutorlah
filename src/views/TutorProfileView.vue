@@ -27,7 +27,7 @@ import {
 } from "../utils/tutorDisplay.js";
 import {
   requestTutor,
-  fetchSentRequests,
+  fetchMatchesWithTutor,
 } from "../services/matches.js";
 
 // FR-013: a tutor's public profile. It only reads tutorProfiles,
@@ -46,6 +46,11 @@ const isCheckingApplication = ref(true);
 const applicationError = ref("");
 const applicationSuccess = ref("");
 const applicationStatusError = ref(false);
+// "matched": already matched with this tutor.
+// "tutor-applied": this tutor applied to my assignment (FR-016) and is
+// waiting for my answer.
+// In both cases the student answers in My Matches instead of applying.
+const relationship = ref("");
 
 // Vue Router remembers the previous page. If it was Find Tutors, "Back to
 // Results" returns to that exact URL, so the filters are still applied.
@@ -85,6 +90,7 @@ async function handleApply() {
     !account.value ||
     !tutor.value ||
     applied.value ||
+    relationship.value ||
     isApplying.value ||
     isCheckingApplication.value ||
     applicationStatusError.value 
@@ -128,6 +134,7 @@ watch(
     const currentCheck = ++applicationCheckId;
 
     applied.value = false;
+    relationship.value = "";
     applicationError.value = "";
     applicationStatusError.value = false;
 
@@ -144,18 +151,27 @@ watch(
     isCheckingApplication.value = true;
 
     try {
-      const sentRequests = await fetchSentRequests();
+      const matches = await fetchMatchesWithTutor(tutor.value.id);
 
       // Ignore outdated requests
       if (currentCheck !== applicationCheckId) return;
 
-      applied.value = sentRequests.some(
+      // FR-009: I already sent this tutor a request.
+      applied.value = matches.some(
         (match) =>
-          match.senderId === user.value.uid &&
-          match.studentId === user.value.uid &&
-          match.tutorId === tutor.value.id &&
-          !match.assignmentId
+          match.senderId === user.value.uid && !match.assignmentId
       );
+
+      if (matches.some((match) => match.status === "accepted")) {
+        relationship.value = "matched";
+      } else if (
+        matches.some(
+          (match) =>
+            match.senderId === tutor.value.id && match.status === "pending"
+        )
+      ) {
+        relationship.value = "tutor-applied";
+      }
 
     } catch (error) {
       if (currentCheck !== applicationCheckId) return;
@@ -284,7 +300,31 @@ onMounted(async () => {
           v-if="account?.role === 'student'"
           class="apply-section"
         >
+          <!-- Already matched, or the tutor applied to my assignment:
+               send the student to My Matches instead of letting them
+               send a second request (FR-022). -->
+          <p
+            v-if="relationship === 'matched'"
+            class="application-message info"
+          >
+            You're matched with {{ tutor.firstName }}.
+            <RouterLink :to="{ name: 'my-matches' }">
+              Chat in My Matches
+            </RouterLink>
+          </p>
+
+          <p
+            v-else-if="relationship === 'tutor-applied'"
+            class="application-message info"
+          >
+            {{ tutor.firstName }} applied to your assignment.
+            <RouterLink :to="{ name: 'my-matches', query: { tab: 'requests' } }">
+              Accept or reject in My Matches
+            </RouterLink>
+          </p>
+
           <button
+            v-else
             type="button"
             class="apply-btn"
             :disabled="applied || isApplying || isCheckingApplication || applicationStatusError"
@@ -364,7 +404,7 @@ onMounted(async () => {
   min-height: 100vh;
   padding: 24px 20px 32px;
   box-sizing: border-box;
-  background: var(--color-bg);
+  background: var(--page-background);
   color: var(--color-text);
   font-family: var(--font-sans);
 }
@@ -618,6 +658,22 @@ onMounted(async () => {
 .application-message.error {
   background: #fdecec;
   color: #c62828;
+}
+
+.application-message.info {
+  background: var(--color-primary-light);
+  color: var(--color-primary-dark);
+  font-size: 15px;
+}
+
+.application-message.info a {
+  color: inherit;
+  font-weight: 600;
+}
+
+.application-message.info a:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
 }
 
 /* Phones: avatar and match ring side by side, details underneath. */

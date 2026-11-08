@@ -1,5 +1,5 @@
 <script setup>
-import { computed, ref, watch } from "vue";
+import { computed, onMounted, onUnmounted, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 
 import AppNavBar from "../components/AppNavBar.vue";
@@ -7,7 +7,6 @@ import ChatPanel from "../components/ChatPanel.vue";
 import MatchList from "../components/MatchList.vue";
 import MatchRequestList from "../components/MatchRequestList.vue";
 import { useCurrentAccount } from "../composables/useCurrentAccount.js";
-import { createSampleData } from "../constants/sampleMatches.js";
 import {
   acceptMatchRequest,
   listenToAcceptedMatches,
@@ -16,15 +15,19 @@ import {
 } from "../services/matches.js";
 import { fetchAssignment } from "../services/assignments.js";
 import {
+  listenToMessages,
+  markChatRead,
+  sendChatMessage,
+} from "../services/messages.js";
+import {
   getFullName,
   getOtherUser,
   toDate,
 } from "../utils/matchDisplay.js";
 
 // My Matches (FR-021 to FR-024).
-// Requests and All Matches load the `matches` collection from Firestore.
-// Chat (FR-024) still uses temporary sample data, and Send only changes
-// what's on screen.
+// Requests, All Matches and the chat all load from Firestore and update
+// by themselves when the other person does something.
 
 const route = useRoute();
 const router = useRouter();
@@ -53,8 +56,10 @@ const assignmentsById = ref({});
 const matchDocs = ref([]);
 const isLoadingMatches = ref(true);
 const matchesError = ref("");
-// Messages for each match, keyed by match ID (SAMPLE DATA, FR-024).
-const messagesByMatch = ref({});
+// Messages in the open chat, from Firestore (FR-024).
+const messages = ref([]);
+const isLoadingMessages = ref(false);
+const chatError = ref("");
 
 const selectedId = ref(null);
 const statusMessage = ref("");
@@ -228,22 +233,40 @@ const selectedMatch = computed(
   () => sortedMatches.value.find((match) => match.id === selectedId.value) ?? null
 );
 
-const selectedMessages = computed(
-  () => messagesByMatch.value[selectedId.value] ?? []
+// FR-024: listen to the open chat, so new messages from either person
+// appear without refreshing.
+watch(
+  selectedId,
+  (matchId, _previousId, onCleanup) => {
+    messages.value = [];
+    chatError.value = "";
+
+    if (!matchId) {
+      isLoadingMessages.value = false;
+      return;
+    }
+
+    isLoadingMessages.value = true;
+
+    const stopListening = listenToMessages(
+      matchId,
+      (docs) => {
+        messages.value = docs;
+        isLoadingMessages.value = false;
+      },
+      (error) => {
+        console.error("Could not load messages:", error);
+        chatError.value =
+          "We could not load this chat. Please refresh and try again.";
+        isLoadingMessages.value = false;
+      }
+    );
+
+    // Stops listening when another chat opens or the page closes.
+    onCleanup(stopListening);
+  },
+  { immediate: true }
 );
-
-watch(account, (currentAccount) => {
-  if (!currentAccount) {
-    return;
-  }
-
-  const sample = createSampleData(currentAccount, myId.value);
-  messagesByMatch.value = sample.messagesByMatch;
-});
-
-function findMatch(id) {
-  return matchDocs.value.find((match) => match.id === id);
-}
 
 function showStatus(message, isError = false) {
   statusMessage.value = message;
@@ -282,22 +305,77 @@ async function respondToRequest(id, accept) {
   }
 }
 
-// FR-024: add the message and update the list preview.
-function sendMessage(text) {
-  const match = findMatch(selectedId.value);
-  const message = {
-    id: `local-${Date.now()}`,
-    senderId: myId.value,
-    text,
-    sentAt: new Date(),
-  };
+// FR-024: when the open chat has a new message from the other person,
+// save that I've read it, so they see a double tick. Only counts while
+// the chat is on screen: All Matches tab, chat open, browser tab visible.
+let lastReadMessageId = null;
 
-  messagesByMatch.value[match.id] = [...selectedMessages.value, message];
-  match.lastMessage = {
-    text,
-    senderId: myId.value,
-    sentAt: message.sentAt,
-  };
+function markOpenChatRead() {
+  const match = selectedMatch.value;
+
+  if (
+    !match ||
+    activeTab.value !== "matches" ||
+    document.visibilityState !== "visible"
+  ) {
+    return;
+  }
+
+  const newestFromThem = messages.value.findLast(
+    (message) => message.senderId !== myId.value
+  );
+
+  if (!newestFromThem || newestFromThem.id === lastReadMessageId) {
+    return;
+  }
+
+  const myReadAt = toDate(match.readAt?.[myId.value]);
+
+  if (myReadAt && myReadAt >= toDate(newestFromThem.sentAt)) {
+    return;
+  }
+
+  // Remembered so the same message isn't saved as read twice.
+  lastReadMessageId = newestFromThem.id;
+  markChatRead(match.id).catch((error) => {
+    console.error("Could not mark chat as read:", error);
+  });
+}
+
+watch([selectedId, messages, activeTab], markOpenChatRead);
+
+onMounted(() => {
+  document.addEventListener("visibilitychange", markOpenChatRead);
+});
+
+onUnmounted(() => {
+  document.removeEventListener("visibilitychange", markOpenChatRead);
+});
+
+// FR-024: save the message. It shows straight away, and the list
+// preview updates once Firestore has it.
+async function sendMessage(text, restoreDraft) {
+  const matchId = selectedId.value;
+
+  if (!matchId) {
+    return;
+  }
+
+  chatError.value = "";
+
+  try {
+    await sendChatMessage(matchId, text);
+  } catch (error) {
+    console.error("Could not send message:", error);
+
+    // Only put the text back if the same chat is still open.
+    if (selectedId.value === matchId) {
+      restoreDraft();
+      chatError.value = "We could not send your message. Please try again.";
+    } else {
+      showStatus("A message could not be sent. Please try again.", true);
+    }
+  }
 }
 
 // Clear the status message when switching tabs.
@@ -414,7 +492,9 @@ watch(activeTab, () => {
             <ChatPanel
               class="chat-panel"
               :match="selectedMatch"
-              :messages="selectedMessages"
+              :messages="messages"
+              :is-loading="isLoadingMessages"
+              :error-message="chatError"
               @send="sendMessage"
               @back="selectedId = null"
             />
@@ -430,7 +510,7 @@ watch(activeTab, () => {
   min-height: 100vh;
   padding: 24px 20px 32px;
   box-sizing: border-box;
-  background: var(--color-bg);
+  background: var(--page-background);
   color: var(--color-text);
   font-family: var(--font-sans);
 }

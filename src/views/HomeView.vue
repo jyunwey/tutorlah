@@ -425,7 +425,7 @@ function openRecommendation(event, item) {
 .home-page {
   min-height: 100vh;
   padding: 24px;
-  background: linear-gradient(135deg, #f0fcf8, #f8fdfc 55%, #eafbf5);
+  background: var(--page-background);
   color: var(--color-text, #1f2a30);
   font-family: var(--font-sans, Arial, Helvetica, sans-serif);
 }

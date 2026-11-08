@@ -4,6 +4,7 @@ import { RouterLink } from "vue-router";
 import InitialsAvatar from "./InitialsAvatar.vue";
 import {
   formatDate,
+  formatTime,
   getFullName,
   getLessonLabel,
   getRoleLabel,
@@ -63,7 +64,9 @@ const emit = defineEmits(["accept", "reject"]);
           </p>
         </div>
 
-        <p class="date">{{ formatDate(request.createdAt) }}</p>
+        <p class="date">
+          {{ formatDate(request.createdAt) }} · {{ formatTime(request.createdAt) }}
+        </p>
 
         <div class="actions" :aria-busy="respondingId === request.id">
           <button
@@ -236,12 +239,19 @@ const emit = defineEmits(["accept", "reject"]);
   outline-offset: 2px;
 }
 
-/* Phones: buttons go under the name, side by side. */
+/* Phones: buttons go under the name, side by side. A smaller avatar
+   leaves more room for the name and subject. */
 @media (max-width: 640px) {
   .request-row {
     grid-template-columns: auto 1fr 32px;
-    gap: 12px 16px;
+    gap: 12px;
     padding: 16px;
+  }
+
+  .request-row .avatar {
+    width: 48px;
+    height: 48px;
+    font-size: 17px;
   }
 
   .date {

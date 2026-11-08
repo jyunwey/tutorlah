@@ -33,7 +33,7 @@ assignments/{id}
 | `tutorProfiles` | Tutor's `uid`       | ✅ Implemented | Any signed-in user    | Public tutor info shown on Find Tutors          |
 | `assignments`   | auto-ID             | ✅ Implemented | Any signed-in user    | A tuition request posted by a student           |
 | `matches`       | Fixed ID (see below) | ✅ Implemented | The two users in it   | A request between a student and a tutor; becomes a match when accepted |
-| `matches/{id}/messages` | auto-ID     | 📝 Rules done, chat not built | The two users in it   | Chat messages between matched users             |
+| `matches/{id}/messages` | auto-ID     | ✅ Implemented | The two users in it   | Chat messages between matched users             |
 
 ### Public vs private data (NFR-007)
 
@@ -198,8 +198,8 @@ There are two ways a request is created:
 | Student clicks Apply on a tutor card or Tutor Profile | FR-009     | student | tutor                     | `{studentId}_{tutorId}`    |
 | Tutor clicks Apply on an assignment                  | FR-016      | tutor   | student who posted it     | `{assignmentId}_{tutorId}` |
 
-The document ID is fixed, not auto-generated, so the same person can't apply twice, and the
-Apply button can check whether to show "Applied" with a single `getDoc`.
+The document ID is fixed, not auto-generated, so the same person can't apply twice: a second
+Apply would try to overwrite the first, and the rules only let the recipient change a request.
 
 | Field              | Type      | Required | Notes                                                        |
 | ------------------ | --------- | -------- | ------------------------------------------------------------ |
@@ -214,6 +214,7 @@ Apply button can check whether to show "Applied" with a single `getDoc`.
 | `studentFirstName` | string    | see note | Copied from the student's own account                       |
 | `studentLastName`  | string    | see note | As above                                                     |
 | `lastMessage`      | map       | no       | `{ text, senderId, sentAt }` of the newest message; set when a message is sent. Used to sort All Matches and show the preview (FR-023) |
+| `readAt`           | map       | no       | `{ [uid]: timestamp }`: when each user last read the chat. A message shows two ticks once the other person's time is after it was sent, one tick before (FR-024) |
 | `createdAt`        | timestamp | yes      | `serverTimestamp()`; shown as the request date               |
 | `updatedAt`        | timestamp | yes      | `serverTimestamp()`; update on every write                   |
 
@@ -224,7 +225,12 @@ tutor applying can't see it.
 
 **What each page reads:**
 
-- **Apply button (FR-009, FR-016):** `getDoc(matches/{fixed ID})`. If it exists, show "Applied".
+- **Apply buttons (FR-009, FR-016):** `senderId == myUid`. Any request in the list shows that
+  card's button as "Applied". It can't be a `getDoc` of the fixed ID: before you apply, the
+  document doesn't exist, and the rules deny reading a missing document.
+- **Tutor Profile (FR-009, FR-022):** `studentId == myUid` and `tutorId == tutorUid`, which also
+  finds requests the tutor sent. If they are matched, or the tutor applied to the student's
+  assignment, the page links to My Matches instead of showing Apply.
 - **Requests tab (FR-022):** `recipientId == myUid` and `status == "pending"`.
 - **All Matches tab (FR-023):** `studentId == myUid` (students) or `tutorId == myUid` (tutors),
   and `status == "accepted"`. Sorted by `lastMessage.sentAt`, newest first.
@@ -254,11 +260,14 @@ Example (FR-009, after the tutor accepted and the student sent a message):
 }
 ```
 
-### `matches/{matchId}/messages/{messageId}` 📝
+### `matches/{matchId}/messages/{messageId}` ✅
 
 Chat messages (FR-024). Only the two users in the match can read or send them, and only once
 the match is `"accepted"` (story 33). Sending a message also updates `lastMessage` and
-`updatedAt` on the match, in the same batch.
+`updatedAt` on the match, in the same batch. Messages can't be edited or deleted.
+
+The open chat listens to `matches/{matchId}/messages` ordered by `sentAt`, oldest first, so new
+messages from either person appear without refreshing.
 
 | Field      | Type      | Required | Notes                                        |
 | ---------- | --------- | -------- | -------------------------------------------- |
@@ -295,7 +304,8 @@ The rules are in [firestore.rules](../firestore.rules). Summary:
   `tutorProfiles` document. An application (FR-016) must come from a tutor, for an `"open"`
   assignment, sent to the student who posted it. Only the recipient can accept or reject, once;
   only the student can add the student names, when accepting. Once accepted, either user can
-  update `lastMessage` and `updatedAt`, and nothing else. Nobody can delete a request.
+  update `lastMessage` and `updatedAt`, or set their own time in `readAt` (to now), and nothing
+  else. Nobody can delete a request.
 - `matches/{id}/messages` (NFR-006/007): only the two users in an `"accepted"` match can read or
   send messages. A message has only `senderId` (the signed-in user), `text` (1 to 1000
   characters) and `sentAt` (`serverTimestamp()`), and cannot be edited or deleted.

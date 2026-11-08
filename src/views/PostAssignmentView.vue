@@ -540,7 +540,7 @@ function handleCancel() {
   min-height: 100vh;
   padding: 24px 20px 48px;
   box-sizing: border-box;
-  background: var(--color-bg);
+  background: var(--page-background);
   color: var(--color-text);
   font-family: var(--font-sans);
 }

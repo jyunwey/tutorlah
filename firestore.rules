@@ -124,15 +124,6 @@ service cloud.firestore {
         ).data.status == "open";
     }
 
-    function isAcceptedMatchParticipant(id) {
-      let parent = get(
-        /databases/$(database)/documents/matches/$(id)
-      ).data;
-      return hasValidParticipants(parent)
-        && isParticipant(parent)
-        && parent.status == "accepted";
-    }
-
     // Read an individual existing request
     allow get: if isSignedIn()
       && hasValidParticipants(resource.data)
@@ -188,43 +179,75 @@ service cloud.firestore {
       )
       && request.resource.data.updatedAt == request.time;
 
+    // FR-024: sending a message also updates the match's lastMessage, so
+    // All Matches can show the preview and sort by the newest message.
+    // Either user in an accepted match can do this, and nothing else
+    // about the match can change.
     allow update: if isSignedIn()
       && hasValidParticipants(resource.data)
       && isParticipant(resource.data)
       && resource.data.status == "accepted"
-      && request.resource.data.status == "accepted"
       && request.resource.data.diff(resource.data)
         .affectedKeys()
         .hasOnly(["lastMessage", "updatedAt"])
-      && request.resource.data.lastMessage.keys()
-        .hasAll(["text", "senderId", "sentAt"])
-      && request.resource.data.lastMessage.keys()
-        .hasOnly(["text", "senderId", "sentAt"])
-      && request.resource.data.lastMessage.text is string
-      && request.resource.data.lastMessage.text.size() > 0
-      && request.resource.data.lastMessage.text.size() <= 1000
-      && request.resource.data.lastMessage.senderId == request.auth.uid
-      && request.resource.data.lastMessage.sentAt == request.time
+      && isValidLastMessage(request.resource.data.lastMessage)
       && request.resource.data.updatedAt == request.time;
+
+    // FR-024: opening a chat saves when each user last read it, so the
+    // other person sees a double tick. Each user can only set their own
+    // time, to now, and nothing else about the match can change.
+    allow update: if isSignedIn()
+      && hasValidParticipants(resource.data)
+      && isParticipant(resource.data)
+      && resource.data.status == "accepted"
+      && request.resource.data.diff(resource.data)
+        .affectedKeys()
+        .hasOnly(["readAt", "updatedAt"])
+      && request.resource.data.readAt is map
+      && request.resource.data.readAt
+        .diff(resource.data.get("readAt", {}))
+        .affectedKeys()
+        .hasOnly([request.auth.uid])
+      && request.resource.data.readAt[request.auth.uid] == request.time
+      && request.resource.data.updatedAt == request.time;
+
+    function isValidMessageText(text) {
+      return text is string
+        && text.size() > 0
+        && text.size() <= 1000;
+    }
+
+    function isValidLastMessage(lastMessage) {
+      return lastMessage is map
+        && lastMessage.keys().hasOnly(["text", "senderId", "sentAt"])
+        && lastMessage.keys().hasAll(["text", "senderId", "sentAt"])
+        && isValidMessageText(lastMessage.text)
+        && lastMessage.senderId == request.auth.uid
+        && lastMessage.sentAt == request.time;
+    }
 
     // Prevent users from deleting requests or accepted matches.
     // Rejected requests are retained with status "rejected".
     allow delete: if false;
 
+    // FR-024 and story 33: chat messages. Only the two users in the match
+    // can read or send them, and only once the match is accepted.
+    // Messages can't be edited or deleted. No attachments: text only.
     match /messages/{messageId} {
-      allow read: if isSignedIn()
-        && isAcceptedMatchParticipant(matchId);
+      function isInAcceptedMatch() {
+        let matchData = get(/databases/$(database)/documents/matches/$(matchId)).data;
+        return hasValidParticipants(matchData)
+          && isParticipant(matchData)
+          && matchData.status == "accepted";
+      }
+
+      allow read: if isSignedIn() && isInAcceptedMatch();
 
       allow create: if isSignedIn()
-        && isAcceptedMatchParticipant(matchId)
-        && request.resource.data.keys()
-          .hasAll(["senderId", "text", "sentAt"])
-        && request.resource.data.keys()
-          .hasOnly(["senderId", "text", "sentAt"])
+        && isInAcceptedMatch()
+        && request.resource.data.keys().hasOnly(["senderId", "text", "sentAt"])
         && request.resource.data.senderId == request.auth.uid
-        && request.resource.data.text is string
-        && request.resource.data.text.size() > 0
-        && request.resource.data.text.size() <= 1000
+        && isValidMessageText(request.resource.data.text)
         && request.resource.data.sentAt == request.time;
 
       allow update, delete: if false;

@@ -14,8 +14,6 @@ import FindAssignmentsView from
   "../views/FindAssignmentsView.vue";
 import CreateProfileView from
   "../views/CreateProfileView.vue";
-import ComingSoonView from
-  "../views/ComingSoonView.vue";
 import MyMatchesView from
   "../views/MyMatchesView.vue";
 import LoginView from "../views/LoginView.vue";
@@ -39,18 +37,20 @@ const router = createRouter({
       path: "/register",
       name: "register",
       component: RegisterView,
+      meta: { title: "Sign Up", guestOnly: true },
     },
     {
       path: "/home",
       name: "home",
       component: HomeView,
-      meta: { requiresAuth: true },
+      meta: { title: "Home", requiresAuth: true },
     },
     {
       path: "/post-assignment",
       name: "post-assignment",
       component: PostAssignmentView,
       meta: {
+        title: "Post Assignment",
         roles: ["student"],
         requiresAuth: true
       },
@@ -59,45 +59,37 @@ const router = createRouter({
       path: "/find-tutors",
       name: "find-tutors",
       component: FindTutorsView,
-      meta: { requiresAuth: true },
+      meta: { title: "Find Tutors", requiresAuth: true },
     },
     {
       path: "/tutors/:id",
       name: "tutor-profile",
       component: TutorProfileView,
-      meta: { requiresAuth: true },
+      meta: { title: "Tutor Profile", requiresAuth: true },
     },
     {
       path: "/create-profile",
       name: "create-profile",
       component: CreateProfileView,
-      meta: { requiresAuth: true },
+      meta: { title: "Set Up Your Profile", requiresAuth: true },
     },
     {
       path: "/profile",
       name: "profile",
       component: ProfileView,
-      meta: { requiresAuth: true },
+      meta: { title: "My Profile", requiresAuth: true },
     },
      {
       path: '/find-assignments',
       name: 'find-assignments',
       component: FindAssignmentsView,
-      meta: { requiresAuth: true },
+      meta: { title: "Find Assignments", requiresAuth: true },
     },
     {
       path: "/my-matches",
       name: "my-matches",
       component: MyMatchesView,
-      meta: { requiresAuth: true },
-    },
-    {
-      path: "/saved",
-      name: "saved",
-      component: ComingSoonView,
-      meta: { title: "Saved" ,
-        requiresAuth: true
-      },
+      meta: { title: "My Matches", requiresAuth: true },
     },
     {
       path: "/:pathMatch(.*)*",
@@ -107,16 +99,23 @@ const router = createRouter({
       path: "/login",
       name: "login",
       component: LoginView,
+      meta: { title: "Log In", guestOnly: true },
     },
     {
       path: "/forgot-password",
       name: "forgot-password",
       component: ForgotPasswordView,
+      meta: { title: "Reset Password" },
     },
   ],
 })
 
 router.beforeEach(async (to) => {
+  if (to.meta.guestOnly) {
+    await auth.authStateReady();
+    return auth.currentUser ? "/home" : true;
+  }
+
   // Public pages do not require authentication
   if (!to.meta.requiresAuth) {
     return true;
@@ -144,5 +143,9 @@ router.beforeEach(async (to) => {
   }
   return true;
 })
+
+router.afterEach((to) => {
+  document.title = to.meta.title ? `${to.meta.title} | TutorLah!` : "TutorLah!";
+});
 
 export default router

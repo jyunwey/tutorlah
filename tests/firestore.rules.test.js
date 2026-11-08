@@ -435,3 +435,31 @@ describe("messages (refined FR-024)", () => {
     );
   });
 });
+
+describe("read ticks (FR-024)", () => {
+  test("each user can mark the chat as read for themselves only", async () => {
+    await seedMatch(DIRECT_ID, directRequest({ status: "accepted" }));
+    await assertSucceeds(
+      updateDoc(doc(db(STUDENT), "matches", DIRECT_ID), {
+        [`readAt.${STUDENT}`]: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      })
+    );
+    await assertFails(
+      updateDoc(doc(db(STUDENT), "matches", DIRECT_ID), {
+        [`readAt.${TUTOR}`]: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      })
+    );
+  });
+
+  test("a pending request has no read ticks", async () => {
+    await seedMatch(DIRECT_ID, directRequest());
+    await assertFails(
+      updateDoc(doc(db(TUTOR), "matches", DIRECT_ID), {
+        [`readAt.${TUTOR}`]: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      })
+    );
+  });
+});
