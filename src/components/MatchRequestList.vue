@@ -4,6 +4,7 @@ import { RouterLink } from "vue-router";
 import InitialsAvatar from "./InitialsAvatar.vue";
 import {
   formatDate,
+  formatTime,
   getFullName,
   getLessonLabel,
   getRoleLabel,
@@ -63,7 +64,9 @@ const emit = defineEmits(["accept", "reject"]);
           </p>
         </div>
 
-        <p class="date">{{ formatDate(request.createdAt) }}</p>
+        <p class="date">
+          {{ formatDate(request.createdAt) }} · {{ formatTime(request.createdAt) }}
+        </p>
 
         <div class="actions" :aria-busy="respondingId === request.id">
           <button
