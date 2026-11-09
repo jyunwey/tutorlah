@@ -1,15 +1,21 @@
 <template>
   <main class="auth-layout">
     <section class="auth-branding">
-      <div class="auth-logo">
-        <img src="/logo-1-book.svg" alt="TutorLah logo" />
+      <div class="brand">
+        <svg viewBox="0 0 40 36" aria-hidden="true">
+          <path d="M2 12 20 3l18 9-18 9L2 12Z" fill="currentColor" />
+          <path d="M9 18v9l11 6 11-6v-9l-11 6-11-6Z" fill="currentColor" />
+          <path d="M4 15v11" stroke="currentColor" stroke-width="3" stroke-linecap="round" />
+          <circle cx="20" cy="11" r="2" fill="white" />
+        </svg>
+
+        <span>Tutor<span class="brand-accent">Lah</span></span>
       </div>
 
       <slot name="branding"></slot>
     </section>
 
-    <section
-      class="auth-content">
+    <section class="auth-content">
       <slot></slot>
     </section>
   </main>
@@ -45,11 +51,27 @@
   max-width: 380px;
 }
 
-.auth-logo img {
-  width: 290px;
-  height: auto;
-  display: block;
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   margin-bottom: 20px;
+  color: var(--color-text, #1f2a30);
+  font-size: 32px;
+  font-weight: 700;
+  letter-spacing: -0.8px;
+   margin-bottom: 30px;
+}
+
+.brand svg {
+  width: 50px;
+  height: 45px;
+  color: var(--color-primary, #0f6b4f);
+  flex-shrink: 0;
+}
+
+.brand-accent {
+  color: var(--color-primary, #0f6b4f);
 }
 
 .auth-branding :deep(h2) {
