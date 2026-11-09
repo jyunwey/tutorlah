@@ -5,6 +5,7 @@ import MatchRing from "./MatchRing.vue";
 import {
   formatCredentials,
   getInitials,
+  hasRating,
 } from "../utils/tutorDisplay.js";
 
 const props = defineProps({
@@ -48,6 +49,15 @@ const credentials = computed(() => formatCredentials(props.tutor));
 
     <div class="details">
       <h3>{{ tutor.firstName }} {{ tutor.lastName }}</h3>
+
+      <!-- Seeded rating, since reviews are not implemented. -->
+      <p v-if="hasRating(tutor)" class="rating">
+        <span class="star" aria-hidden="true">★</span>
+        {{ tutor.rating.toFixed(1) }}
+      </p>
+      <p v-else>
+        <span class="new-tutor">New tutor</span>
+      </p>
 
       <p v-if="credentials">{{ credentials }}</p>
 
@@ -139,6 +149,24 @@ const credentials = computed(() => formatCredentials(props.tutor));
   color: var(--color-text);
   font-size: 1.2rem;
   font-weight: 700;
+}
+
+.rating {
+  color: var(--color-text);
+}
+
+.star {
+  color: var(--color-star);
+}
+
+.new-tutor {
+  display: inline-block;
+  padding: 2px 10px;
+  border-radius: 999px;
+  background: var(--color-primary-light);
+  color: var(--color-primary-dark);
+  font-size: 0.85rem;
+  font-weight: 600;
 }
 
 .tags {
