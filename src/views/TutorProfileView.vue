@@ -23,6 +23,7 @@ import { filtersFromQuery } from "../utils/filterQuery.js";
 import {
   formatCredentials,
   getInitials,
+  hasRating,
 } from "../utils/tutorDisplay.js";
 import {
   requestTutor,
@@ -263,6 +264,16 @@ onMounted(async () => {
           <div class="summary">
             <h1>{{ tutor.firstName }} {{ tutor.lastName }}</h1>
 
+            <!-- Seeded rating, since reviews are not implemented. -->
+            <p v-if="hasRating(tutor)" class="rating">
+              <span class="star" aria-hidden="true">★</span>
+              {{ tutor.rating.toFixed(1) }}
+              <span class="rating-max">/ 5</span>
+            </p>
+            <p v-else>
+              <span class="new-tutor">New tutor</span>
+            </p>
+
             <ul class="detail-list">
               <li v-for="row in detailRows" :key="row.icon">
                 <svg
@@ -472,6 +483,28 @@ onMounted(async () => {
 .summary h1 {
   font-size: 1.75rem;
   font-weight: 800;
+}
+
+.rating {
+  font-size: 1.05rem;
+}
+
+.star {
+  color: var(--color-star);
+}
+
+.rating-max {
+  color: var(--color-text-muted);
+}
+
+.new-tutor {
+  display: inline-block;
+  padding: 3px 12px;
+  border-radius: 999px;
+  background: var(--color-primary-light);
+  color: var(--color-primary-dark);
+  font-size: 0.9rem;
+  font-weight: 600;
 }
 
 .detail-list {
