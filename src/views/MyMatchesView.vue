@@ -90,7 +90,8 @@ function withLesson(match) {
   };
 }
 
-watch(requestDocs, async (docs) => {
+watch([requestDocs, matchDocs], async ([requests, matches]) => {
+  const docs = [...requests, ...matches];
   const missingIds = [
     ...new Set(
       docs
@@ -165,6 +166,7 @@ const sortedMatches = computed(() =>
   matchDocs.value
     .filter((match) => match.status === "accepted")
     .sort((a, b) => lastActivity(b) - lastActivity(a))
+    .map(withLesson)
     .map(withOtherUser)
 );
 
