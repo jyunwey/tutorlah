@@ -4,6 +4,7 @@ import { computed } from "vue";
 import MatchRing from "./MatchRing.vue";
 import {
   formatCredentials,
+  formatTutorRating,
   getInitials,
   hasRating,
 } from "../utils/tutorDisplay.js";
@@ -48,15 +49,21 @@ const credentials = computed(() => formatCredentials(props.tutor));
     <div class="avatar" aria-hidden="true">{{ initials }}</div>
 
     <div class="details">
-      <h3>{{ tutor.firstName }} {{ tutor.lastName }}</h3>
+      <div class="name-row">
+        <h3>{{ tutor.firstName }} {{ tutor.lastName }}</h3>
+        <span v-if="!hasRating(tutor)" class="new-tutor">New tutor</span>
+      </div>
 
       <!-- Seeded rating, since reviews are not implemented. -->
-      <p v-if="hasRating(tutor)" class="rating">
-        <span class="star" aria-hidden="true">★</span>
-        {{ tutor.rating.toFixed(1) }}
-      </p>
-      <p v-else>
-        <span class="new-tutor">New tutor</span>
+      <p
+        v-if="hasRating(tutor)"
+        class="rating"
+        :aria-label="`Illustrative rating: ${formatTutorRating(tutor)} out of 5`"
+      >
+        <span aria-hidden="true">
+          <span class="star">★</span>
+          {{ formatTutorRating(tutor) }}
+        </span>
       </p>
 
       <p v-if="credentials">{{ credentials }}</p>
@@ -136,6 +143,7 @@ const credentials = computed(() => formatCredentials(props.tutor));
 
 .details {
   display: grid;
+  min-width: 0;
   gap: 4px;
   color: var(--color-text-muted);
 }
@@ -151,6 +159,19 @@ const credentials = computed(() => formatCredentials(props.tutor));
   font-weight: 700;
 }
 
+.name-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px 10px;
+  min-width: 0;
+}
+
+.name-row h3 {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
 .rating {
   color: var(--color-text);
 }
@@ -160,13 +181,18 @@ const credentials = computed(() => formatCredentials(props.tutor));
 }
 
 .new-tutor {
-  display: inline-block;
-  padding: 2px 10px;
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  padding: 2px 8px;
+  border: 1px solid var(--color-border);
   border-radius: 999px;
   background: var(--color-primary-light);
   color: var(--color-primary-dark);
-  font-size: 0.85rem;
+  font-size: 0.75rem;
   font-weight: 600;
+  line-height: 1.25;
+  white-space: nowrap;
 }
 
 .tags {

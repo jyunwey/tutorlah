@@ -194,8 +194,14 @@ async function saveTutorProfile(uid, profile) {
   const profileRef = doc(db, "tutorProfiles", uid);
 
   if ((await getDoc(profileRef)).exists()) {
+    // Ratings are fixed illustrative seed data. Re-running the seed may
+    // refresh profile details, but must not overwrite an existing rating.
+    const profileUpdates = Object.fromEntries(
+      Object.entries(profile).filter(([field]) => field !== "rating"),
+    );
+
     await updateDoc(profileRef, {
-      ...profile,
+      ...profileUpdates,
       updatedAt: serverTimestamp(),
     });
   } else {

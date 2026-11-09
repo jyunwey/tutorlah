@@ -4,7 +4,16 @@
 // Only seeded demo tutors have a rating (Refined FR-008).
 // Tutors who registered themselves have none and show as "New tutor".
 export function hasRating(tutor) {
-  return typeof tutor.rating === "number";
+  return (
+    typeof tutor?.rating === "number" &&
+    Number.isFinite(tutor.rating) &&
+    tutor.rating > 0 &&
+    tutor.rating <= 5
+  );
+}
+
+export function formatTutorRating(tutor) {
+  return hasRating(tutor) ? tutor.rating.toFixed(1) : "New tutor";
 }
 
 // Initials avatar replaces the profile photo.

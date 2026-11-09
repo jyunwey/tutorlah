@@ -91,6 +91,15 @@ describe("recommendTutors", () => {
     assert.deepEqual(results.map(({ item }) => item.id), ["best", "tie-a", "tie-b"]);
     assert.ok(results[0].compatibility > results[1].compatibility);
   });
+
+  test("keeps unrated tutors eligible without changing tie order", () => {
+    const results = recommendTutors([
+      tutor("unrated"),
+      tutor("rated", { rating: 4.8 }),
+    ], student);
+
+    assert.deepEqual(results.map(({ item }) => item.id), ["unrated", "rated"]);
+  });
 });
 
 describe("recommendAssignments", () => {

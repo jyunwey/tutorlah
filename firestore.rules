@@ -25,8 +25,16 @@ service cloud.firestore {
 
     // Demo tutors created by scripts/seedTutors.js.
     function isSeededDemoAccount() {
-      return request.auth.token.email
-        .matches(".*@tutorlah[.]test$");
+      let email = request.auth.token.get("email", "");
+      return email is string
+        && (
+          email == "rachel.lim@tutorlah.test"
+          || email == "daniel.ng@tutorlah.test"
+          || email == "priya.kumar@tutorlah.test"
+          || email == "weijie.tan@tutorlah.test"
+          || email == "aisyah.rahman@tutorlah.test"
+          || email == "marcus.lee@tutorlah.test"
+        );
     }
 
       match /matches/{matchId} {
@@ -456,8 +464,11 @@ service cloud.firestore {
           && request.resource.data.teachingStyles is list
 
           // Optional fields: checked only if present.
-          && request.resource.data.get("rating", 0)
-            is number
+          && (!("rating" in request.resource.data) || (
+            request.resource.data.rating is number
+            && request.resource.data.rating > 0
+            && request.resource.data.rating <= 5
+          ))
           && request.resource.data.get("qualification", "")
             is string
           && request.resource.data.get("yearsOfExperience", 0)
@@ -465,13 +476,7 @@ service cloud.firestore {
           && request.resource.data.get("bio", "")
             is string
           && request.resource.data.get("lessonModes", [])
-            is list
-
-          // Ratings are seeded demo values (Refined FR-008), so only the
-          // seeded @tutorlah.test accounts may have one. Real tutors can't
-          // give themselves a rating; the app shows them as "New tutor".
-          && (!("rating" in request.resource.data)
-            || isSeededDemoAccount());
+            is list;
       }
 
       allow read: if isSignedIn();
@@ -479,6 +484,10 @@ service cloud.firestore {
       allow create: if isDocumentOwner(uid)
         && currentUserRole() == "tutor"
         && hasValidTutorProfileFields()
+
+        // Only the approved seed accounts can create a rated profile.
+        && (!("rating" in request.resource.data)
+          || isSeededDemoAccount())
 
         && request.resource.data.createdAt
           == request.time
@@ -488,6 +497,11 @@ service cloud.firestore {
 
       allow update: if isDocumentOwner(uid)
         && hasValidTutorProfileFields()
+
+        // Seeded ratings are fixed prototype data. Profile editing may
+        // preserve one, but cannot add, remove, or change it.
+        && !request.resource.data.diff(resource.data).affectedKeys()
+          .hasAny(["rating"])
 
         && request.resource.data.createdAt
           == resource.data.createdAt

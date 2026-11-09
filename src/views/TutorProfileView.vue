@@ -22,6 +22,7 @@ import {
 import { filtersFromQuery } from "../utils/filterQuery.js";
 import {
   formatCredentials,
+  formatTutorRating,
   getInitials,
   hasRating,
 } from "../utils/tutorDisplay.js";
@@ -262,16 +263,22 @@ onMounted(async () => {
           <div class="avatar" aria-hidden="true">{{ getInitials(tutor) }}</div>
 
           <div class="summary">
-            <h1>{{ tutor.firstName }} {{ tutor.lastName }}</h1>
+            <div class="name-row">
+              <h1>{{ tutor.firstName }} {{ tutor.lastName }}</h1>
+              <span v-if="!hasRating(tutor)" class="new-tutor">New tutor</span>
+            </div>
 
             <!-- Seeded rating, since reviews are not implemented. -->
-            <p v-if="hasRating(tutor)" class="rating">
-              <span class="star" aria-hidden="true">★</span>
-              {{ tutor.rating.toFixed(1) }}
-              <span class="rating-max">/ 5</span>
-            </p>
-            <p v-else>
-              <span class="new-tutor">New tutor</span>
+            <p
+              v-if="hasRating(tutor)"
+              class="rating"
+              :aria-label="`Illustrative rating: ${formatTutorRating(tutor)} out of 5`"
+            >
+              <span aria-hidden="true">
+                <span class="star">★</span>
+                {{ formatTutorRating(tutor) }}
+                <span class="rating-max">/ 5</span>
+              </span>
             </p>
 
             <ul class="detail-list">
@@ -472,6 +479,7 @@ onMounted(async () => {
 
 .summary {
   display: grid;
+  min-width: 0;
   gap: 8px;
 }
 
@@ -483,6 +491,19 @@ onMounted(async () => {
 .summary h1 {
   font-size: 1.75rem;
   font-weight: 800;
+}
+
+.name-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px 10px;
+  min-width: 0;
+}
+
+.name-row h1 {
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .rating {
@@ -498,13 +519,18 @@ onMounted(async () => {
 }
 
 .new-tutor {
-  display: inline-block;
-  padding: 3px 12px;
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  padding: 3px 9px;
+  border: 1px solid var(--color-border);
   border-radius: 999px;
   background: var(--color-primary-light);
   color: var(--color-primary-dark);
-  font-size: 0.9rem;
+  font-size: 0.8rem;
   font-weight: 600;
+  line-height: 1.25;
+  white-space: nowrap;
 }
 
 .detail-list {

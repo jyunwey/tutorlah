@@ -1,3 +1,4 @@
+import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { after, before, beforeEach, describe, test } from "node:test";
 import {
@@ -7,6 +8,7 @@ import {
 } from "@firebase/rules-unit-testing";
 import {
   collection,
+  deleteField,
   deleteDoc,
   doc,
   getDoc,
@@ -26,10 +28,36 @@ const NEW_USER = "student3";
 const ASSIGNMENT = "assignment1";
 const DIRECT_ID = `${STUDENT}_${TUTOR}`;
 const APPLICATION_ID = `${ASSIGNMENT}_${TUTOR}`;
+const SEEDED_TUTOR_EMAILS = [
+  "rachel.lim@tutorlah.test",
+  "daniel.ng@tutorlah.test",
+  "priya.kumar@tutorlah.test",
+  "weijie.tan@tutorlah.test",
+  "aisyah.rahman@tutorlah.test",
+  "marcus.lee@tutorlah.test",
+];
 
 let testEnv;
 
 const db = (uid) => testEnv.authenticatedContext(uid).firestore();
+const dbWithEmail = (uid, email) =>
+  testEnv.authenticatedContext(uid, { email }).firestore();
+
+function tutorProfile(overrides = {}) {
+  return {
+    firstName: "Rachel",
+    lastName: "Lim",
+    subjects: ["Mathematics"],
+    levels: ["Secondary"],
+    location: "East",
+    hourlyRate: 45,
+    availability: ["Weekend"],
+    teachingStyles: ["Patient"],
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+    ...overrides,
+  };
+}
 
 function directRequest(overrides = {}) {
   return {
@@ -109,6 +137,120 @@ beforeEach(async () => {
 
 after(async () => {
   await testEnv.cleanup();
+});
+
+describe("tutor rating safety", () => {
+  test("an ordinary tutor cannot create a profile with a rating", async () => {
+    await seed(async (admin) => {
+      await deleteDoc(doc(admin, "tutorProfiles", TUTOR));
+    });
+
+    await assertFails(
+      setDoc(
+        doc(db(TUTOR), "tutorProfiles", TUTOR),
+        tutorProfile({ rating: 4.8 }),
+      ),
+    );
+  });
+
+  test("the exact approved seed accounts can create a valid illustrative rating", async () => {
+    await seed(async (admin) => {
+      await deleteDoc(doc(admin, "tutorProfiles", TUTOR));
+    });
+
+    for (const email of SEEDED_TUTOR_EMAILS) {
+      const seededDb = dbWithEmail(TUTOR, email);
+      const profileRef = doc(seededDb, "tutorProfiles", TUTOR);
+
+      await assertSucceeds(setDoc(profileRef, tutorProfile({ rating: 4.8 })));
+      await assertSucceeds(deleteDoc(profileRef));
+    }
+  });
+
+  test("a made-up tutorlah.test account cannot create a rated profile", async () => {
+    await seed(async (admin) => {
+      await deleteDoc(doc(admin, "tutorProfiles", TUTOR));
+    });
+
+    await assertFails(
+      setDoc(
+        doc(
+          dbWithEmail(TUTOR, "made.up@tutorlah.test"),
+          "tutorProfiles",
+          TUTOR,
+        ),
+        tutorProfile({ rating: 4.8 }),
+      ),
+    );
+  });
+
+  test("a seeded rating must be a number greater than zero and at most five", async () => {
+    await seed(async (admin) => {
+      await deleteDoc(doc(admin, "tutorProfiles", TUTOR));
+    });
+    const seededDb = dbWithEmail(TUTOR, SEEDED_TUTOR_EMAILS[0]);
+
+    for (const rating of [0, -1, 5.1, "4.8"]) {
+      await assertFails(
+        setDoc(doc(seededDb, "tutorProfiles", TUTOR), tutorProfile({ rating })),
+      );
+    }
+  });
+
+  test("a newly registered tutor can create an unrated profile", async () => {
+    await seed(async (admin) => {
+      await deleteDoc(doc(admin, "tutorProfiles", TUTOR));
+    });
+
+    await assertSucceeds(
+      setDoc(doc(db(TUTOR), "tutorProfiles", TUTOR), tutorProfile()),
+    );
+  });
+
+  test("profile updates cannot change or remove an existing seeded rating", async () => {
+    await seed(async (admin) => {
+      await setDoc(
+        doc(admin, "tutorProfiles", TUTOR),
+        tutorProfile({ rating: 4.8 }),
+      );
+    });
+    const seededDb = dbWithEmail(TUTOR, SEEDED_TUTOR_EMAILS[0]);
+
+    await assertFails(
+      updateDoc(doc(seededDb, "tutorProfiles", TUTOR), {
+        rating: 4.9,
+        updatedAt: serverTimestamp(),
+      }),
+    );
+    await assertFails(
+      updateDoc(doc(seededDb, "tutorProfiles", TUTOR), {
+        rating: deleteField(),
+        updatedAt: serverTimestamp(),
+      }),
+    );
+    await assertSucceeds(
+      updateDoc(doc(seededDb, "tutorProfiles", TUTOR), {
+        location: "West",
+        updatedAt: serverTimestamp(),
+      }),
+    );
+
+    const snapshot = await getDoc(doc(seededDb, "tutorProfiles", TUTOR));
+    assert.equal(snapshot.data().rating, 4.8);
+  });
+
+  test("a profile update cannot add a rating", async () => {
+    await seed(async (admin) => {
+      await setDoc(doc(admin, "tutorProfiles", TUTOR), tutorProfile());
+    });
+
+    await assertFails(
+      updateDoc(doc(db(TUTOR), "tutorProfiles", TUTOR), {
+        rating: 4.8,
+        updatedAt: serverTimestamp(),
+      }),
+    );
+  });
 });
 
 describe("creating requests (FR-009, FR-016)", () => {
