@@ -1,5 +1,5 @@
 <script setup>
-import { computed, onMounted, onUnmounted, ref, watch } from "vue";
+import { computed, nextTick, onMounted, onUnmounted, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 
 import AppNavBar from "../components/AppNavBar.vue";
@@ -71,8 +71,26 @@ const activeTab = computed(() =>
   route.query.tab === "requests" ? "requests" : "matches"
 );
 
-function openTab(tab) {
-  router.replace({ query: tab === "requests" ? { tab } : {} });
+async function openTab(tab) {
+  await router.replace({ query: tab === "requests" ? { tab } : {} });
+}
+
+async function handleTabKeydown(event) {
+  const tabs = ["requests", "matches"];
+  const currentIndex = tabs.indexOf(activeTab.value);
+  let nextIndex;
+
+  if (event.key === "ArrowRight") nextIndex = (currentIndex + 1) % tabs.length;
+  else if (event.key === "ArrowLeft") nextIndex = (currentIndex - 1 + tabs.length) % tabs.length;
+  else if (event.key === "Home") nextIndex = 0;
+  else if (event.key === "End") nextIndex = tabs.length - 1;
+  else return;
+
+  event.preventDefault();
+  const nextTab = tabs[nextIndex];
+  await openTab(nextTab);
+  await nextTick();
+  document.getElementById(`tab-${nextTab}`)?.focus();
 }
 
 // Adds `otherUser` (name, role, ID) for the cards and chat to show.
@@ -122,7 +140,7 @@ watch([requestDocs, matchDocs], async ([requests, matches]) => {
 // FR-022: newest request first.
 const requests = computed(() =>
   [...requestDocs.value]
-    .sort((a, b) => toDate(b.createdAt) - toDate(a.createdAt))
+    .sort((a, b) => dateValue(b.createdAt) - dateValue(a.createdAt))
     .map(withOtherUser)
     .map(withLesson)
 );
@@ -171,7 +189,11 @@ const sortedMatches = computed(() =>
 );
 
 function lastActivity(match) {
-  return toDate(match.lastMessage?.sentAt ?? match.createdAt);
+  return dateValue(match.lastMessage?.sentAt ?? match.createdAt);
+}
+
+function dateValue(value) {
+  return toDate(value)?.getTime() ?? 0;
 }
 
 // FR-023: listen for accepted matches involving the current user. Keep the
@@ -332,8 +354,9 @@ function markOpenChatRead() {
   }
 
   const myReadAt = toDate(match.readAt?.[myId.value]);
+  const messageSentAt = toDate(newestFromThem.sentAt);
 
-  if (myReadAt && myReadAt >= toDate(newestFromThem.sentAt)) {
+  if (myReadAt && messageSentAt && myReadAt >= messageSentAt) {
     return;
   }
 
@@ -419,8 +442,10 @@ watch(activeTab, () => {
             class="tab"
             :class="{ active: activeTab === 'requests' }"
             :aria-selected="activeTab === 'requests'"
+            :tabindex="activeTab === 'requests' ? 0 : -1"
             aria-controls="panel-requests"
             @click="openTab('requests')"
+            @keydown="handleTabKeydown"
           >
             Requests{{ isLoadingRequests ? "" : ` (${requests.length})` }}
           </button>
@@ -431,8 +456,10 @@ watch(activeTab, () => {
             class="tab"
             :class="{ active: activeTab === 'matches' }"
             :aria-selected="activeTab === 'matches'"
+            :tabindex="activeTab === 'matches' ? 0 : -1"
             aria-controls="panel-matches"
             @click="openTab('matches')"
+            @keydown="handleTabKeydown"
           >
             All Matches ({{ sortedMatches.length }})
           </button>

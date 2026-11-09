@@ -37,6 +37,27 @@ npm run dev
 npm run build
 ```
 
+### Seed demo tutors
+
+The seed script creates real Firebase Authentication accounts. Supply a strong
+local password through `SEED_TUTOR_PASSWORD`; the script has no default and
+never prints the value.
+
+```sh
+cp .env.seed.example .env.seed
+# Replace the placeholder in .env.seed, then load it into this shell.
+set -a
+. ./.env.seed
+set +a
+npm run seed:tutors
+unset SEED_TUTOR_PASSWORD
+```
+
+`.env.seed` is ignored by Git. Only `.env.seed.example`, containing a
+placeholder, should be committed. Existing seeded Firebase accounts must have
+their passwords rotated or be deleted manually. The previous value also remains
+in older Git commits; any history rewrite requires a coordinated team decision.
+
 ### Lint with [ESLint](https://eslint.org/)
 
 ```sh

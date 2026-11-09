@@ -1,4 +1,5 @@
 <script setup>
+import { ref } from "vue";
 import { RouterLink } from "vue-router";
 
 import InitialsAvatar from "./InitialsAvatar.vue";
@@ -29,6 +30,20 @@ defineProps({
 });
 
 const emit = defineEmits(["accept", "reject"]);
+
+const expandedRequestId = ref(null);
+
+function toggleRequestDetails(requestId) {
+  expandedRequestId.value = expandedRequestId.value === requestId
+    ? null
+    : requestId;
+}
+
+function receivedLabel(request) {
+  return [formatDate(request.createdAt), formatTime(request.createdAt)]
+    .filter(Boolean)
+    .join(" · ") || "Not available";
+}
 </script>
 
 <template>
@@ -65,7 +80,7 @@ const emit = defineEmits(["accept", "reject"]);
         </div>
 
         <p class="date">
-          {{ formatDate(request.createdAt) }} · {{ formatTime(request.createdAt) }}
+          {{ receivedLabel(request) }}
         </p>
 
         <div class="actions" :aria-busy="respondingId === request.id">
@@ -87,8 +102,9 @@ const emit = defineEmits(["accept", "reject"]);
           </button>
         </div>
 
-        <!-- FR-022: open the tutor's profile. There is no public page
-             for students yet, so this only shows for tutors. -->
+        <!-- FR-022: tutor senders have a public profile. Student/Parent
+             senders use a privacy-safe details panel based only on fields
+             already copied onto this request. -->
         <RouterLink
           v-if="request.otherUser.role === 'tutor'"
           :to="{ name: 'tutor-profile', params: { id: request.otherUser.id } }"
@@ -97,7 +113,43 @@ const emit = defineEmits(["accept", "reject"]);
         >
           ›
         </RouterLink>
-        <span v-else class="profile-link-spacer" aria-hidden="true"></span>
+        <button
+          v-else
+          type="button"
+          class="profile-link"
+          :aria-label="`View request details for ${getFullName(request.otherUser)}`"
+          :aria-expanded="expandedRequestId === request.id"
+          :aria-controls="`request-details-${request.id}`"
+          @click="toggleRequestDetails(request.id)"
+        >
+          ›
+        </button>
+
+        <div
+          v-if="expandedRequestId === request.id"
+          :id="`request-details-${request.id}`"
+          class="request-details"
+        >
+          <h3>Request details</h3>
+          <dl>
+            <div>
+              <dt>Requester</dt>
+              <dd>{{ getFullName(request.otherUser) }}</dd>
+            </div>
+            <div>
+              <dt>Role</dt>
+              <dd>{{ getRoleLabel(request.otherUser.role) }}</dd>
+            </div>
+            <div v-if="getLessonLabel(request)">
+              <dt>Learning request</dt>
+              <dd>{{ getLessonLabel(request) }}</dd>
+            </div>
+            <div>
+              <dt>Received</dt>
+              <dd>{{ receivedLabel(request) }}</dd>
+            </div>
+          </dl>
+        </div>
       </li>
     </ul>
   </section>
@@ -226,10 +278,47 @@ const emit = defineEmits(["accept", "reject"]);
   color: var(--color-text);
   font-size: 1.75rem;
   text-decoration: none;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
 }
 
 .profile-link:hover {
   background: var(--color-surface-muted);
+}
+
+.request-details {
+  grid-column: 2 / -1;
+  padding: 14px 16px;
+  border-radius: var(--radius-control);
+  background: var(--color-surface-muted);
+}
+
+.request-details h3 {
+  margin: 0 0 10px;
+  font-size: 1rem;
+}
+
+.request-details dl {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px 20px;
+  margin: 0;
+}
+
+.request-details dt,
+.request-details dd {
+  margin: 0;
+}
+
+.request-details dt {
+  color: var(--color-text-muted);
+  font-size: 0.85rem;
+}
+
+.request-details dd {
+  margin-top: 2px;
+  font-weight: 600;
 }
 
 .accept-button:focus-visible,
@@ -265,10 +354,17 @@ const emit = defineEmits(["accept", "reject"]);
     width: auto;
   }
 
-  .profile-link,
-  .profile-link-spacer {
+  .profile-link {
     grid-column: 3;
     grid-row: 1;
+  }
+
+  .request-details {
+    grid-column: 1 / -1;
+  }
+
+  .request-details dl {
+    grid-template-columns: 1fr;
   }
 }
 </style>

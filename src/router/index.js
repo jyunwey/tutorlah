@@ -18,6 +18,7 @@ import MyMatchesView from
   "../views/MyMatchesView.vue";
 import LoginView from "../views/LoginView.vue";
 import ForgotPasswordView from "../views/ForgotPasswordView.vue";
+import AccountLoadErrorView from "../views/AccountLoadErrorView.vue";
 
 import { createRouter, createWebHistory } from 'vue-router'
 import { getCurrentAccount } from "../services/session.js";
@@ -61,13 +62,13 @@ const router = createRouter({
       path: "/find-tutors",
       name: "find-tutors",
       component: FindTutorsView,
-      meta: { title: "Find Tutors", requiresAuth: true },
+      meta: { title: "Find Tutors", roles: ["student"], requiresAuth: true },
     },
     {
       path: "/tutors/:id",
       name: "tutor-profile",
       component: TutorProfileView,
-      meta: { title: "Tutor Profile", requiresAuth: true },
+      meta: { title: "Tutor Profile", roles: ["student"], requiresAuth: true },
     },
     {
       path: "/create-profile",
@@ -85,13 +86,23 @@ const router = createRouter({
       path: '/find-assignments',
       name: 'find-assignments',
       component: FindAssignmentsView,
-      meta: { title: "Find Assignments", requiresAuth: true },
+      meta: { title: "Find Assignments", roles: ["tutor"], requiresAuth: true },
     },
     {
       path: "/my-matches",
       name: "my-matches",
       component: MyMatchesView,
       meta: { title: "My Matches", requiresAuth: true },
+    },
+    {
+      path: "/account-error",
+      name: "account-error",
+      component: AccountLoadErrorView,
+      meta: {
+        title: "Account Unavailable",
+        requiresAuth: true,
+        skipAccountCheck: true,
+      },
     },
     {
       path: "/:pathMatch(.*)*",
@@ -127,12 +138,20 @@ router.beforeEach(async (to) => {
 
   // redirect to login from any protected page
   if (!auth.currentUser) {
-    return "/login";
+    return { name: "login", query: { redirect: to.fullPath } };
+  }
+
+  // Account failures land here. Retrying another route runs the account check
+  // again, while this route itself remains reachable without a redirect loop.
+  if (to.meta.skipAccountCheck) {
+    return true;
   }
 
   try {
     const account = await getCurrentAccount();
-    if (!account) return true;
+    if (!account) {
+      return { name: "account-error", query: { redirect: to.fullPath } };
+    }
 
     if (!account.onboardingComplete && to.name !== "create-profile") {
       return "/create-profile";
@@ -142,6 +161,7 @@ router.beforeEach(async (to) => {
     if (allowedRoles && !allowedRoles.includes(account.role)) return "/home";
   } catch (error) {
     console.error("Could not check account:", error);
+    return { name: "account-error", query: { redirect: to.fullPath } };
   }
   return true;
 })

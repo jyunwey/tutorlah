@@ -130,7 +130,7 @@ created by [scripts/seedTutors.js](../scripts/seedTutors.js) as real tutor accou
 | `hourlyRate`     | number    | yes      | SGD per hour                                             |
 | `availability`   | string[]  | yes      | Values from `AVAILABILITY`                               |
 | `teachingStyles` | string[]  | yes      | Values from `TEACHING_STYLES`                            |
-| `rating`         | number    | no       | Seeded demo tutors only (0–5), since reviews are not implemented. The rules only let `@tutorlah.test` accounts set it; tutors without one show as "New tutor". |
+| `rating`         | number    | no       | Fixed illustrative value for the six allowlisted demo tutors only (`> 0` and `<= 5`); immutable after creation. Reviews are not implemented, and tutors without a valid value show as "New tutor". |
 | `bio`            | string    | no       | Shown in the About tab of the Tutor Profile (FR-013)     |
 | `qualification`  | string    | no       | Short, e.g. `"Ex-MOE Teacher"`, `"NUS Graduate"` (FR-008) |
 | `yearsOfExperience` | number | no       | Shown as "6 years experience" on the tutor card (FR-008) |
@@ -163,8 +163,10 @@ Example:
 
 ## `assignments/{assignmentId}` ✅
 
-A tuition request created by a student. Readable by any signed-in user; only the student who
-posted it can edit or delete it.
+A tuition request created by a student. Readable by any signed-in user. The owner can move it
+from `"open"` to `"matched"` or `"closed"`, and from `"matched"` to `"closed"`. Assignment
+details are immutable after posting, and documents are archived by status rather than deleted so
+applications and matches never point at a missing assignment.
 
 | Field                 | Type      | Required | Notes                                      |
 | --------------------- | --------- | -------- | ------------------------------------------ |
@@ -179,7 +181,7 @@ posted it can edit or delete it.
 | `preferredTimeSlot`   | string    | no       | Normalised two-hour slot, or empty string  |
 | `teachingStyle`       | string    | yes      | Selected style or `"No preference"`        |
 | `additionalDetails`   | string    | no       | Extra information supplied by the student |
-| `status`              | string    | yes      | `"open"` initially                         |
+| `status`              | string    | yes      | `"open"` initially; may transition to `"matched"` or `"closed"` |
 | `createdAt`           | timestamp | yes      | Firestore server timestamp                 |
 | `updatedAt`           | timestamp | yes      | Firestore server timestamp                 |
 
@@ -215,7 +217,7 @@ Apply would try to overwrite the first, and the rules only let the recipient cha
 | `tutorLastName`    | string    | yes      | As above                                                     |
 | `studentFirstName` | string    | see note | Copied from the student's own account                       |
 | `studentLastName`  | string    | see note | As above                                                     |
-| `lastMessage`      | map       | no       | `{ text, senderId, sentAt }` of the newest message; set when a message is sent. Used to sort All Matches and show the preview (FR-023) |
+| `lastMessage`      | map       | no       | `{ messageId, text, senderId, sentAt }` of the newest message; set when a message is sent. Used to sort All Matches and show the preview (FR-023) |
 | `readAt`           | map       | no       | `{ [uid]: timestamp }`: when each user last read the chat. A message shows two ticks once the other person's time is after it was sent, one tick before (FR-024) |
 | `createdAt`        | timestamp | yes      | `serverTimestamp()`; shown as the request date               |
 | `updatedAt`        | timestamp | yes      | `serverTimestamp()`; update on every write                   |
@@ -223,7 +225,8 @@ Apply would try to overwrite the first, and the rules only let the recipient cha
 **Why the names are copied here:** users can't read each other's `users` documents (NFR-007),
 so My Matches can't look names up later. The student's name is added by the student: when they
 send the request (FR-009), or when they accept a tutor's application (FR-016), because the
-tutor applying can't see it.
+tutor applying can't see it. Security rules require these copied names to match the authoritative
+`users/{studentId}` and `tutorProfiles/{tutorId}` documents.
 
 **What each page reads:**
 
@@ -253,6 +256,7 @@ Example (FR-009, after the tutor accepted and the student sent a message):
   "tutorFirstName": "Rachel",
   "tutorLastName": "Lim",
   "lastMessage": {
+    "messageId": "messageDoc789",
     "text": "Great! See you this Wednesday.",
     "senderId": "studentUid123",
     "sentAt": "<server timestamp>"
@@ -266,7 +270,10 @@ Example (FR-009, after the tutor accepted and the student sent a message):
 
 Chat messages (FR-024). Only the two users in the match can read or send them, and only once
 the match is `"accepted"` (story 33). Sending a message also updates `lastMessage` and
-`updatedAt` on the match, in the same batch. Messages can't be edited or deleted.
+`updatedAt` on the match, in the same batch. `lastMessage.messageId` is the message document
+ID, and rules use the post-batch state to require both writes to agree on the sender, text and
+timestamp. Messages can't be edited or deleted. Older `lastMessage` maps without `messageId`
+remain readable, but every new message write uses the hardened shape.
 
 The open chat listens to `matches/{matchId}/messages` ordered by `sentAt`, oldest first, so new
 messages from either person appear without refreshing.
@@ -298,19 +305,23 @@ The rules are in [firestore.rules](../firestore.rules). Summary:
 - `tutorProfiles`: any signed-in user can read; only a tutor can create or edit their own;
   only the listed fields are allowed.
 - `assignments`: any signed-in user can read; only a student can create one, with
-  `studentId == request.auth.uid`; only that student can edit or delete it.
+  `studentId == request.auth.uid`. Details and ownership are immutable after posting. Only the
+  owner can move the status forward from `"open"` to `"matched"`/`"closed"`, or from `"matched"`
+  to `"closed"`; deletion is denied so existing applications keep a valid reference.
 - `matches` (NFR-006/007): only the student and tutor in it can read it, and queries must filter
   on `senderId`, `recipientId`, `studentId` or `tutorId` equal to the signed-in user. Only a user
   with a finished profile can send a request, as `"pending"`, using the fixed document ID and only
   the fields listed above. A direct request (FR-009) must come from a student to a tutor who has a
   `tutorProfiles` document. An application (FR-016) must come from a tutor, for an `"open"`
-  assignment, sent to the student who posted it. Only the recipient can accept or reject, once;
-  only the student can add the student names, when accepting. Once accepted, either user can
-  update `lastMessage` and `updatedAt`, or set their own time in `readAt` (to now), and nothing
-  else. Nobody can delete a request.
+  assignment, sent to the student who posted it. Copied names must match the authoritative user
+  and tutor-profile documents. Only the recipient can accept or reject, once; only the student
+  can add their authoritative name when accepting. Once accepted, either user can atomically
+  update `lastMessage` and its matching message, or set their own time in `readAt` (to now), and
+  nothing else. Nobody can delete a request.
 - `matches/{id}/messages` (NFR-006/007): only the two users in an `"accepted"` match can read or
-  send messages. A message has only `senderId` (the signed-in user), `text` (1 to 1000
-  characters) and `sentAt` (`serverTimestamp()`), and cannot be edited or deleted.
+  send messages. A message has only `senderId` (the signed-in user), non-whitespace `text` (1 to
+  1000 characters) and `sentAt` (`serverTimestamp()`), and cannot be edited or deleted. A new
+  message must be batched with a matching `lastMessage` preview containing its document ID.
 
 `npm run test:rules` checks these rules in the Firestore emulator
 ([tests/firestore.rules.test.js](../tests/firestore.rules.test.js)). It needs Java 21 or newer.

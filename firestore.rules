@@ -25,8 +25,16 @@ service cloud.firestore {
 
     // Demo tutors created by scripts/seedTutors.js.
     function isSeededDemoAccount() {
-      return request.auth.token.email
-        .matches(".*@tutorlah[.]test$");
+      let email = request.auth.token.get("email", "");
+      return email is string
+        && (
+          email == "rachel.lim@tutorlah.test"
+          || email == "daniel.ng@tutorlah.test"
+          || email == "priya.kumar@tutorlah.test"
+          || email == "weijie.tan@tutorlah.test"
+          || email == "aisyah.rahman@tutorlah.test"
+          || email == "marcus.lee@tutorlah.test"
+        );
     }
 
       match /matches/{matchId} {
@@ -101,6 +109,22 @@ service cloud.firestore {
         && data.get("level", "").size() <= 50;
     }
 
+    function hasAuthoritativeTutorName(data) {
+      let tutor = get(
+        /databases/$(database)/documents/tutorProfiles/$(data.tutorId)
+      ).data;
+      return data.tutorFirstName == tutor.firstName
+        && data.tutorLastName == tutor.lastName;
+    }
+
+    function hasAuthoritativeStudentName(data) {
+      let student = get(
+        /databases/$(database)/documents/users/$(data.studentId)
+      ).data;
+      return data.studentFirstName == student.firstName
+        && data.studentLastName == student.lastName;
+    }
+
     function hasFinishedProfile() {
       return get(
         /databases/$(database)/documents/users/$(request.auth.uid)
@@ -112,6 +136,8 @@ service cloud.firestore {
         && data.senderId == data.studentId
         && id == data.studentId + "_" + data.tutorId
         && currentUserRole() == "student"
+        && hasAuthoritativeStudentName(data)
+        && hasAuthoritativeTutorName(data)
         && exists(
           /databases/$(database)/documents/tutorProfiles/$(data.tutorId)
         );
@@ -123,6 +149,9 @@ service cloud.firestore {
         && data.senderId == data.tutorId
         && id == data.assignmentId + "_" + data.tutorId
         && currentUserRole() == "tutor"
+        && !("studentFirstName" in data)
+        && !("studentLastName" in data)
+        && hasAuthoritativeTutorName(data)
         && get(
           /databases/$(database)/documents/assignments/$(data.assignmentId)
         ).data.studentId == data.studentId
@@ -159,7 +188,7 @@ service cloud.firestore {
       && request.resource.data.updatedAt == request.time;
 
     // Only the recipient can accept or reject a pending request.
-    // Student names may also be added when accepting a tutor's application (FR-021).
+    // Authoritative student names are added when accepting a tutor's application.
     // senderId, recipientId, studentId and tutorId must remain unchanged.
     allow update: if isSignedIn()
       && request.auth.uid == resource.data.recipientId
@@ -173,18 +202,19 @@ service cloud.firestore {
           "studentFirstName",
           "studentLastName"
         ])
-      && (
-        !request.resource.data.diff(resource.data)
-          .affectedKeys()
-          .hasAny(["studentFirstName", "studentLastName"])
-        || (
-          request.auth.uid == resource.data.studentId
-          && request.resource.data.status == "accepted"
-          && request.resource.data.studentFirstName is string
-          && request.resource.data.studentLastName is string
-        )
-      )
+      && hasValidAnswerNameChanges()
       && request.resource.data.updatedAt == request.time;
+
+    function hasValidAnswerNameChanges() {
+      let changed = request.resource.data.diff(resource.data).affectedKeys();
+      return request.resource.data.status == "rejected"
+        ? !changed.hasAny(["studentFirstName", "studentLastName"])
+        : resource.data.senderId == resource.data.studentId
+          ? !changed.hasAny(["studentFirstName", "studentLastName"])
+          : request.auth.uid == resource.data.studentId
+            && changed.hasAll(["studentFirstName", "studentLastName"])
+            && hasAuthoritativeStudentName(request.resource.data);
+    }
 
     // FR-024: sending a message also updates the match's lastMessage, so
     // All Matches can show the preview and sort by the newest message.
@@ -198,6 +228,7 @@ service cloud.firestore {
         .affectedKeys()
         .hasOnly(["lastMessage", "updatedAt"])
       && isValidLastMessage(request.resource.data.lastMessage)
+      && lastMessageHasMatchingMessage(request.resource.data.lastMessage)
       && request.resource.data.updatedAt == request.time;
 
     // FR-024: opening a chat saves when each user last read it, so the
@@ -221,16 +252,38 @@ service cloud.firestore {
     function isValidMessageText(text) {
       return text is string
         && text.size() > 0
-        && text.size() <= 1000;
+        && text.size() <= 1000
+        && text.matches(".*\\S.*");
     }
 
     function isValidLastMessage(lastMessage) {
       return lastMessage is map
-        && lastMessage.keys().hasOnly(["text", "senderId", "sentAt"])
-        && lastMessage.keys().hasAll(["text", "senderId", "sentAt"])
+        && lastMessage.keys().hasOnly([
+          "messageId",
+          "text",
+          "senderId",
+          "sentAt"
+        ])
+        && lastMessage.keys().hasAll([
+          "messageId",
+          "text",
+          "senderId",
+          "sentAt"
+        ])
+        && lastMessage.messageId is string
+        && lastMessage.messageId.size() > 0
         && isValidMessageText(lastMessage.text)
         && lastMessage.senderId == request.auth.uid
         && lastMessage.sentAt == request.time;
+    }
+
+    function lastMessageHasMatchingMessage(lastMessage) {
+      let messagePath = /databases/$(database)/documents/matches/$(matchId)/messages/$(lastMessage.messageId);
+      let message = getAfter(messagePath).data;
+      return existsAfter(messagePath)
+        && message.senderId == lastMessage.senderId
+        && message.text == lastMessage.text
+        && message.sentAt == lastMessage.sentAt;
     }
 
     // Prevent users from deleting requests or accepted matches.
@@ -248,6 +301,17 @@ service cloud.firestore {
           && matchData.status == "accepted";
       }
 
+      function parentHasMatchingLastMessage() {
+        let parent = getAfter(
+          /databases/$(database)/documents/matches/$(matchId)
+        ).data;
+        return parent.status == "accepted"
+          && parent.lastMessage.messageId == messageId
+          && parent.lastMessage.senderId == request.resource.data.senderId
+          && parent.lastMessage.text == request.resource.data.text
+          && parent.lastMessage.sentAt == request.resource.data.sentAt;
+      }
+
       allow read: if isSignedIn() && isInAcceptedMatch();
 
       allow create: if isSignedIn()
@@ -255,7 +319,8 @@ service cloud.firestore {
         && request.resource.data.keys().hasOnly(["senderId", "text", "sentAt"])
         && request.resource.data.senderId == request.auth.uid
         && isValidMessageText(request.resource.data.text)
-        && request.resource.data.sentAt == request.time;
+        && request.resource.data.sentAt == request.time
+        && parentHasMatchingLastMessage();
 
       allow update, delete: if false;
     }
@@ -399,8 +464,11 @@ service cloud.firestore {
           && request.resource.data.teachingStyles is list
 
           // Optional fields: checked only if present.
-          && request.resource.data.get("rating", 0)
-            is number
+          && (!("rating" in request.resource.data) || (
+            request.resource.data.rating is number
+            && request.resource.data.rating > 0
+            && request.resource.data.rating <= 5
+          ))
           && request.resource.data.get("qualification", "")
             is string
           && request.resource.data.get("yearsOfExperience", 0)
@@ -408,13 +476,7 @@ service cloud.firestore {
           && request.resource.data.get("bio", "")
             is string
           && request.resource.data.get("lessonModes", [])
-            is list
-
-          // Ratings are seeded demo values (Refined FR-008), so only the
-          // seeded @tutorlah.test accounts may have one. Real tutors can't
-          // give themselves a rating; the app shows them as "New tutor".
-          && (!("rating" in request.resource.data)
-            || isSeededDemoAccount());
+            is list;
       }
 
       allow read: if isSignedIn();
@@ -422,6 +484,10 @@ service cloud.firestore {
       allow create: if isDocumentOwner(uid)
         && currentUserRole() == "tutor"
         && hasValidTutorProfileFields()
+
+        // Only the approved seed accounts can create a rated profile.
+        && (!("rating" in request.resource.data)
+          || isSeededDemoAccount())
 
         && request.resource.data.createdAt
           == request.time
@@ -431,6 +497,11 @@ service cloud.firestore {
 
       allow update: if isDocumentOwner(uid)
         && hasValidTutorProfileFields()
+
+        // Seeded ratings are fixed prototype data. Profile editing may
+        // preserve one, but cannot add, remove, or change it.
+        && !request.resource.data.diff(resource.data).affectedKeys()
+          .hasAny(["rating"])
 
         && request.resource.data.createdAt
           == resource.data.createdAt
@@ -442,7 +513,6 @@ service cloud.firestore {
     }
 
     // Post Assignment (FR-018, FR-019) and Find Assignments (FR-014, FR-015).
-    // TODO: add field checks once the Post Assignment fields are final.
     match /assignments/{assignmentId} {
       function hasValidAssignmentFields() {
         return request.resource.data.keys().hasAll([
@@ -526,17 +596,27 @@ service cloud.firestore {
         && request.resource.data.studentId
           == resource.data.studentId
 
-        && request.resource.data.createdAt
-          == resource.data.createdAt
+        && request.resource.data.diff(resource.data)
+          .affectedKeys()
+          .hasOnly(["status", "updatedAt"])
 
-        && hasValidAssignmentFields()
+        && (
+          (
+            resource.data.status == "open"
+            && request.resource.data.status in ["matched", "closed"]
+          )
+          || (
+            resource.data.status == "matched"
+            && request.resource.data.status == "closed"
+          )
+        )
 
         && request.resource.data.updatedAt
           == request.time;
 
-      allow delete: if isSignedIn()
-        && resource.data.studentId
-          == request.auth.uid;
+      // Keep references from applications and matches valid. Archive by moving
+      // to "closed" instead of deleting the assignment document.
+      allow delete: if false;
     }
   }
 }

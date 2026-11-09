@@ -283,8 +283,9 @@ function matchesFilters(
 
   if (
     learningModes.length > 0
-    && !learningModes.includes(
-      assignment.learningMode
+    && !matchesLearningModes(
+      assignment.learningMode,
+      learningModes
     )
   ) {
     return false
@@ -343,6 +344,21 @@ function matchesFilters(
   }
 
   return true
+}
+
+function matchesLearningModes(
+  assignmentMode,
+  selectedModes
+) {
+  if (selectedModes.includes(assignmentMode)) {
+    return true
+  }
+
+  return assignmentMode === 'Either'
+    && selectedModes.some((mode) =>
+      mode === 'Online'
+      || mode === 'In-person'
+    )
 }
 
 function clearFilters() {

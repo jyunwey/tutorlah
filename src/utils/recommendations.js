@@ -14,7 +14,6 @@ export function recommendTutors(tutors, student) {
     tutors.map((tutor) => ({
       item: tutor,
       compatibility: getCompatibility(tutor, criteria),
-      tieBreak: typeof tutor.rating === "number" ? tutor.rating : -1,
     })),
   );
 }
@@ -28,17 +27,18 @@ export function recommendAssignments(assignments, tutorProfile) {
     assignments.map((assignment) => ({
       item: assignment,
       compatibility: getAssignmentCompatibility(tutorProfile, assignment),
-      tieBreak: assignment.createdAt?.toMillis?.() ?? 0,
     })),
   );
 }
 
 function topScored(scored) {
   return scored
-    .filter(({ compatibility }) => compatibility > 0)
-    .sort(
-      (a, b) => b.compatibility - a.compatibility || b.tieBreak - a.tieBreak,
-    )
+    .map((entry, index) => ({ ...entry, index }))
+    .sort((a, b) => scoreOf(b) - scoreOf(a) || a.index - b.index)
     .slice(0, RECOMMENDATION_COUNT)
     .map(({ item, compatibility }) => ({ item, compatibility }));
+}
+
+function scoreOf(entry) {
+  return Number.isFinite(entry.compatibility) ? entry.compatibility : 0;
 }

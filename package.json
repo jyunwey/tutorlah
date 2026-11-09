@@ -12,6 +12,7 @@
     "lint:eslint": "eslint . --fix --cache",
     "format": "prettier --write --experimental-cli src/",
     "seed:tutors": "node scripts/seedTutors.js",
+    "test:unit": "node --test tests/recommendations.test.js tests/matchDisplay.test.js tests/tutorDisplay.test.js",
     "test:rules": "npx -y firebase-tools@15 emulators:exec --only firestore --project demo-tutorlah \"node --test tests/firestore.rules.test.js\""
   },
   "dependencies": {

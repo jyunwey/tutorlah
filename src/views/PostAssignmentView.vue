@@ -14,6 +14,9 @@ import {
 import {
   createAssignment,
 } from '../services/assignments.js'
+import {
+  SUBJECTS,
+} from '../constants/tutorFilters.js'
 
 const router = useRouter()
 
@@ -38,6 +41,7 @@ const errors = reactive({})
 const formMessage = ref('')
 const formMessageType = ref('')
 const isSubmitting = ref(false)
+const isSubmitted = ref(false)
 
 function clearError(fieldName) {
   delete errors[fieldName]
@@ -113,7 +117,7 @@ async function handleSubmit() {
     return
   }
 
-  if (isSubmitting.value) {
+  if (isSubmitting.value || isSubmitted.value) {
     return
   }
 
@@ -134,6 +138,7 @@ async function handleSubmit() {
       'Assignment posted successfully.'
 
     formMessageType.value = 'success'
+    isSubmitted.value = true
   } catch (error) {
     console.error(
       'Failed to post assignment:',
@@ -196,28 +201,27 @@ function handleCancel() {
           id="subject"
           v-model="form.subject"
           :aria-invalid="Boolean(errors.subject)"
+          :aria-describedby="errors.subject ? 'subject-error' : undefined"
           @change="clearError('subject')"
         >
           <option value="">
             Select a subject
           </option>
 
-          <option value="English">
-            English
-          </option>
-
-          <option value="Mathematics">
-            Mathematics
-          </option>
-
-          <option value="Science">
-            Science
+          <option
+            v-for="subject in SUBJECTS"
+            :key="subject"
+            :value="subject"
+          >
+            {{ subject }}
           </option>
         </select>
 
         <p
           v-if="errors.subject"
+          id="subject-error"
           class="field-error"
+          role="alert"
         >
           {{ errors.subject }}
         </p>
@@ -232,6 +236,7 @@ function handleCancel() {
           id="level"
           v-model="form.level"
           :aria-invalid="Boolean(errors.level)"
+          :aria-describedby="errors.level ? 'level-error' : undefined"
           @change="clearError('level')"
         >
           <option value="">
@@ -253,7 +258,9 @@ function handleCancel() {
 
         <p
           v-if="errors.level"
+          id="level-error"
           class="field-error"
+          role="alert"
         >
           {{ errors.level }}
         </p>
@@ -268,6 +275,7 @@ function handleCancel() {
           id="location"
           v-model="form.location"
           :aria-invalid="Boolean(errors.location)"
+          :aria-describedby="errors.location ? 'location-error' : undefined"
           @change="clearError('location')"
         >
           <option value="">
@@ -297,7 +305,9 @@ function handleCancel() {
 
         <p
           v-if="errors.location"
+          id="location-error"
           class="field-error"
+          role="alert"
         >
           {{ errors.location }}
         </p>
@@ -312,6 +322,7 @@ function handleCancel() {
           id="learning-mode"
           v-model="form.learningMode"
           :aria-invalid="Boolean(errors.learningMode)"
+          :aria-describedby="errors.learningMode ? 'learning-mode-error' : undefined"
           @change="clearError('learningMode')"
         >
           <option value="In-person">
@@ -329,7 +340,9 @@ function handleCancel() {
 
         <p
           v-if="errors.learningMode"
+          id="learning-mode-error"
           class="field-error"
+          role="alert"
         >
           {{ errors.learningMode }}
         </p>
@@ -346,12 +359,15 @@ function handleCancel() {
           type="number"
           min="1"
           :aria-invalid="Boolean(errors.minimumRate)"
+          :aria-describedby="errors.minimumRate ? 'minimum-rate-error' : undefined"
           @input="clearError('minimumRate')"
         />
 
         <p
           v-if="errors.minimumRate"
+          id="minimum-rate-error"
           class="field-error"
+          role="alert"
         >
           {{ errors.minimumRate }}
         </p>
@@ -368,12 +384,15 @@ function handleCancel() {
           type="number"
           min="1"
           :aria-invalid="Boolean(errors.maximumRate)"
+          :aria-describedby="errors.maximumRate ? 'maximum-rate-error' : undefined"
           @input="clearError('maximumRate')"
         />
 
         <p
           v-if="errors.maximumRate"
+          id="maximum-rate-error"
           class="field-error"
+          role="alert"
         >
           {{ errors.maximumRate }}
         </p>
@@ -522,12 +541,14 @@ function handleCancel() {
     <button
       class="submit-button"
       type="submit"
-      :disabled="isSubmitting"
+      :disabled="isSubmitting || isSubmitted"
     >
       {{
         isSubmitting
           ? 'Posting...'
-          : 'Post Assignment'
+          : isSubmitted
+            ? 'Assignment Posted'
+            : 'Post Assignment'
       }}
     </button>
     </footer>

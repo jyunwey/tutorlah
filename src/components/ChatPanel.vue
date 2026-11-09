@@ -59,8 +59,9 @@ function getTickStatus(message) {
   }
 
   const theirReadAt = toDate(props.match.readAt?.[props.match.otherUser.id]);
+  const sentAt = toDate(message.sentAt);
 
-  return theirReadAt && theirReadAt >= toDate(message.sentAt) ? "read" : "sent";
+  return theirReadAt && sentAt && theirReadAt >= sentAt ? "read" : "sent";
 }
 
 const messageRows = computed(() =>
