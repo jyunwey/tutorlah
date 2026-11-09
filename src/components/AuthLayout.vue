@@ -130,4 +130,40 @@
 .auth-content :deep(.auth-switch a:hover) {
   text-decoration: underline;
 }
+
+@media (max-width: 760px) {
+  .auth-layout {
+    flex-direction: column;
+    align-items: stretch;
+    justify-content: flex-start;
+    gap: 24px;
+    min-height: 100dvh;
+    padding: 24px 16px;
+    overflow: auto;
+  }
+
+  .auth-branding,
+  .auth-content {
+    width: 100%;
+    max-width: 600px;
+    margin: 0 auto;
+    box-sizing: border-box;
+  }
+
+  .auth-logo img {
+    width: min(220px, 70vw);
+  }
+
+  .auth-branding :deep(h2) {
+    font-size: 2rem;
+  }
+
+  .auth-branding :deep(.feature) {
+    margin-bottom: 14px;
+  }
+
+  .auth-content {
+    padding: 28px 20px;
+  }
+}
 </style>

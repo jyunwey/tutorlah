@@ -83,6 +83,7 @@ export async function sendChatMessage(matchId, text) {
 
   batch.update(matchRef, {
     lastMessage: {
+      messageId: messageRef.id,
       text: messageText,
       senderId: user.uid,
       sentAt: serverTimestamp(),

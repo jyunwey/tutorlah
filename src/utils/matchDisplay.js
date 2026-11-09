@@ -1,12 +1,24 @@
 // Display helpers for the My Matches page (FR-021 to FR-024).
 
-// Firestore returns Timestamps; anything else is treated as a date.
+// Firestore returns Timestamps. Local pending writes can temporarily be null,
+// and older/malformed documents may contain another value, so callers always
+// receive either a valid Date or null.
 export function toDate(value) {
-  if (!value) {
+  if (value === null || value === undefined) {
     return null;
   }
 
-  return typeof value.toDate === "function" ? value.toDate() : new Date(value);
+  try {
+    const date = typeof value.toDate === "function"
+      ? value.toDate()
+      : value instanceof Date
+        ? value
+        : new Date(value);
+
+    return date instanceof Date && Number.isFinite(date.getTime()) ? date : null;
+  } catch {
+    return null;
+  }
 }
 
 // The other person in a match, from the names copied onto the
@@ -30,7 +42,7 @@ export function getOtherUser(match, myId) {
 }
 
 export function getFullName(person) {
-  return `${person.firstName} ${person.lastName}`;
+  return [person.firstName, person.lastName].filter(Boolean).join(" ");
 }
 
 export function getRoleLabel(role) {
@@ -39,7 +51,10 @@ export function getRoleLabel(role) {
 
 // e.g. "2:24 PM".
 export function formatTime(value) {
-  return toDate(value).toLocaleTimeString("en-US", {
+  const date = toDate(value);
+  if (!date) return "";
+
+  return date.toLocaleTimeString("en-US", {
     hour: "numeric",
     minute: "2-digit",
   });
@@ -47,7 +62,10 @@ export function formatTime(value) {
 
 // e.g. "3 Nov".
 export function formatDate(value) {
-  return toDate(value).toLocaleDateString("en-GB", {
+  const date = toDate(value);
+  if (!date) return "";
+
+  return date.toLocaleDateString("en-GB", {
     day: "numeric",
     month: "short",
   });
@@ -56,6 +74,8 @@ export function formatDate(value) {
 // Match list times: "2:24 PM" today, "Yesterday", otherwise "3 Nov".
 export function formatListTime(value) {
   const date = toDate(value);
+  if (!date) return "";
+
   const today = new Date();
   const yesterday = new Date();
   yesterday.setDate(today.getDate() - 1);

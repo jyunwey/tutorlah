@@ -7,8 +7,8 @@
 // writes their users/{uid} and tutorProfiles/{uid} documents.
 // Re-running is safe: existing accounts are reused and their profiles updated.
 //
-// Seeded tutors can log in with their email below and SEED_PASSWORD,
-// e.g. to accept requests during the Sprint 2 demo.
+// Set SEED_TUTOR_PASSWORD in the environment before running this script. Never
+// commit the value or print it. These accounts can log in during a local demo.
 
 import process from "node:process";
 
@@ -31,11 +31,18 @@ import {
 
 import { firebaseConfig } from "../src/firebaseConfig.js";
 
+const SEED_TUTOR_PASSWORD = process.env.SEED_TUTOR_PASSWORD;
+
+if (!SEED_TUTOR_PASSWORD) {
+  console.error(
+    "SEED_TUTOR_PASSWORD is required. Set it in your environment before seeding tutors.",
+  );
+  process.exit(1);
+}
+
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
-
-const SEED_PASSWORD = "SeedTutor123!";
 
 // Values must match the filter options in src/constants/tutorFilters.js.
 const TUTORS = [
@@ -142,7 +149,7 @@ async function signUpOrSignIn(email) {
     const credential = await createUserWithEmailAndPassword(
       auth,
       email,
-      SEED_PASSWORD
+      SEED_TUTOR_PASSWORD,
     );
     return credential.user;
   } catch (error) {
@@ -153,7 +160,7 @@ async function signUpOrSignIn(email) {
     const credential = await signInWithEmailAndPassword(
       auth,
       email,
-      SEED_PASSWORD
+      SEED_TUTOR_PASSWORD,
     );
     return credential.user;
   }

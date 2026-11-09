@@ -96,7 +96,7 @@ const detailRows = computed(() => {
 const formValues = computed(() => {
   if (!profile.value) return {};
   const names = { firstName: profile.value.firstName, lastName: profile.value.lastName };
-  if (isTutor.value) return { ...(tutorProfile.value || {}), ...names, phone: profile.value.phone };
+  if (isTutor.value) return { ...tutorProfile.value, ...names, phone: profile.value.phone };
   return { ...profile.value };
 });
 
@@ -118,7 +118,7 @@ async function handleSave(values) {
     await updateProfile(userId.value, profile.value, values, Boolean(tutorProfile.value));
     if (isTutor.value) {
       const { phone, firstName, lastName, ...teachingValues } = values;
-      tutorProfile.value = { ...(tutorProfile.value || {}), ...teachingValues, firstName, lastName };
+      tutorProfile.value = { ...tutorProfile.value, ...teachingValues, firstName, lastName };
       profile.value = { ...profile.value, phone, firstName, lastName };
     } else {
       profile.value = { ...profile.value, ...values };

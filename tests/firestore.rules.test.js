@@ -6,7 +6,6 @@ import {
   initializeTestEnvironment,
 } from "@firebase/rules-unit-testing";
 import {
-  addDoc,
   collection,
   deleteDoc,
   doc,
@@ -17,6 +16,7 @@ import {
   setDoc,
   updateDoc,
   where,
+  writeBatch,
 } from "firebase/firestore";
 
 const STUDENT = "student1";
@@ -67,17 +67,17 @@ function application(overrides = {}) {
 async function seed(extra = async () => {}) {
   await testEnv.withSecurityRulesDisabled(async (context) => {
     const admin = context.firestore();
-    const user = (role, onboardingComplete) => ({
+    const user = (role, onboardingComplete, firstName, lastName) => ({
       role,
-      firstName: "Test",
-      lastName: "User",
+      firstName,
+      lastName,
       email: "test@example.com",
       onboardingComplete,
     });
-    await setDoc(doc(admin, "users", STUDENT), user("student", true));
-    await setDoc(doc(admin, "users", OUTSIDER), user("student", true));
-    await setDoc(doc(admin, "users", NEW_USER), user("student", false));
-    await setDoc(doc(admin, "users", TUTOR), user("tutor", true));
+    await setDoc(doc(admin, "users", STUDENT), user("student", true, "Jane", "Tan"));
+    await setDoc(doc(admin, "users", OUTSIDER), user("student", true, "Alex", "Ong"));
+    await setDoc(doc(admin, "users", NEW_USER), user("student", false, "New", "User"));
+    await setDoc(doc(admin, "users", TUTOR), user("tutor", true, "Rachel", "Lim"));
     await setDoc(doc(admin, "tutorProfiles", TUTOR), {
       firstName: "Rachel",
       lastName: "Lim",
@@ -123,6 +123,38 @@ describe("creating requests (FR-009, FR-016)", () => {
     await seed();
     await assertSucceeds(
       setDoc(doc(db(TUTOR), "matches", APPLICATION_ID), application())
+    );
+  });
+
+  test("copied student and tutor names must match authoritative profiles", async () => {
+    await seed();
+    await assertFails(
+      setDoc(
+        doc(db(STUDENT), "matches", DIRECT_ID),
+        directRequest({ studentFirstName: "Imposter" })
+      )
+    );
+    await assertFails(
+      setDoc(
+        doc(db(STUDENT), "matches", DIRECT_ID),
+        directRequest({ tutorLastName: "Imposter" })
+      )
+    );
+    await assertFails(
+      setDoc(
+        doc(db(TUTOR), "matches", APPLICATION_ID),
+        application({ tutorFirstName: "Imposter" })
+      )
+    );
+  });
+
+  test("a tutor application cannot supply the student's private name", async () => {
+    await seed();
+    await assertFails(
+      setDoc(
+        doc(db(TUTOR), "matches", APPLICATION_ID),
+        application({ studentFirstName: "Jane", studentLastName: "Tan" })
+      )
     );
   });
 
@@ -355,6 +387,18 @@ describe("accepting and rejecting (FR-022)", () => {
     );
   });
 
+  test("a student cannot add a spoofed name while accepting", async () => {
+    await seedMatch(APPLICATION_ID, application());
+    await assertFails(
+      updateDoc(doc(db(STUDENT), "matches", APPLICATION_ID), {
+        status: "accepted",
+        studentFirstName: "Imposter",
+        studentLastName: "Tan",
+        updatedAt: serverTimestamp(),
+      })
+    );
+  });
+
   test("a tutor cannot change the student's name", async () => {
     await seedMatch(DIRECT_ID, directRequest());
     await assertFails(
@@ -374,40 +418,83 @@ describe("accepting and rejecting (FR-022)", () => {
 });
 
 describe("messages (refined FR-024)", () => {
-  const message = (senderId, text = "Hello!") => ({
-    senderId,
-    text,
-    sentAt: serverTimestamp(),
-  });
   const messages = (uid) =>
     collection(db(uid), "matches", DIRECT_ID, "messages");
 
+  async function sendMessage(
+    uid,
+    messageId,
+    { senderId = uid, text = "Hello!", previewText = text } = {}
+  ) {
+    const database = db(uid);
+    const batch = writeBatch(database);
+    const messageRef = doc(database, "matches", DIRECT_ID, "messages", messageId);
+    const sentAt = serverTimestamp();
+
+    batch.set(messageRef, { senderId, text, sentAt });
+    batch.update(doc(database, "matches", DIRECT_ID), {
+      lastMessage: {
+        messageId,
+        senderId,
+        text: previewText,
+        sentAt,
+      },
+      updatedAt: serverTimestamp(),
+    });
+
+    return batch.commit();
+  }
+
   test("both users in an accepted match can send and read messages", async () => {
     await seedMatch(DIRECT_ID, directRequest({ status: "accepted" }));
-    await assertSucceeds(addDoc(messages(STUDENT), message(STUDENT)));
-    await assertSucceeds(addDoc(messages(TUTOR), message(TUTOR)));
+    await assertSucceeds(sendMessage(STUDENT, "m1"));
+    await assertSucceeds(sendMessage(TUTOR, "m2"));
     await assertSucceeds(getDocs(messages(STUDENT)));
     await assertSucceeds(getDocs(messages(TUTOR)));
   });
 
   test("nobody can chat before the request is accepted", async () => {
     await seedMatch(DIRECT_ID, directRequest());
-    await assertFails(addDoc(messages(STUDENT), message(STUDENT)));
+    await assertFails(sendMessage(STUDENT, "m1"));
     await assertFails(getDocs(messages(TUTOR)));
   });
 
   test("users outside the match cannot read or send messages", async () => {
     await seedMatch(DIRECT_ID, directRequest({ status: "accepted" }));
     await assertFails(getDocs(messages(OUTSIDER)));
-    await assertFails(addDoc(messages(OUTSIDER), message(OUTSIDER)));
+    await assertFails(sendMessage(OUTSIDER, "m1"));
   });
 
-  test("a message must be from the signed-in user and 1 to 1000 characters", async () => {
+  test("a message must be from the signed-in user and contain 1 to 1000 non-whitespace characters", async () => {
     await seedMatch(DIRECT_ID, directRequest({ status: "accepted" }));
-    await assertFails(addDoc(messages(STUDENT), message(TUTOR)));
-    await assertFails(addDoc(messages(STUDENT), message(STUDENT, "")));
+    await assertFails(sendMessage(STUDENT, "wrong-sender", { senderId: TUTOR }));
+    await assertFails(sendMessage(STUDENT, "empty", { text: "" }));
+    await assertFails(sendMessage(STUDENT, "spaces", { text: "   " }));
+    await assertFails(sendMessage(STUDENT, "too-long", { text: "a".repeat(1001) }));
+  });
+
+  test("the message and latest-message preview must be committed together and agree", async () => {
+    await seedMatch(DIRECT_ID, directRequest({ status: "accepted" }));
     await assertFails(
-      addDoc(messages(STUDENT), message(STUDENT, "a".repeat(1001)))
+      setDoc(doc(messages(STUDENT), "standalone"), {
+        senderId: STUDENT,
+        text: "Hidden message",
+        sentAt: serverTimestamp(),
+      })
+    );
+    await assertFails(
+      updateDoc(doc(db(STUDENT), "matches", DIRECT_ID), {
+        lastMessage: {
+          messageId: "missing",
+          senderId: STUDENT,
+          text: "Forged preview",
+          sentAt: serverTimestamp(),
+        },
+        updatedAt: serverTimestamp(),
+      })
+    );
+    await assertFails(
+      sendMessage(STUDENT, "mismatch", { text: "Message", previewText: "Different" })
     );
   });
 
@@ -423,42 +510,77 @@ describe("messages (refined FR-024)", () => {
     await assertFails(updateDoc(ref, { text: "Changed" }));
     await assertFails(deleteDoc(ref));
   });
+});
 
-  test("either user can update the latest-message preview", async () => {
-    await seedMatch(DIRECT_ID, directRequest({ status: "accepted" }));
+describe("assignment lifecycle", () => {
+  const validAssignment = (overrides = {}) => ({
+    studentId: STUDENT,
+    subject: "Mathematics",
+    level: "Secondary",
+    location: "East",
+    learningMode: "Either",
+    minimumRate: 30,
+    maximumRate: 50,
+    preferredDay: "Saturday",
+    preferredTimeSlot: "10:00-12:00",
+    teachingStyle: "Patient",
+    additionalDetails: "Exam preparation",
+    status: "open",
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    ...overrides,
+  });
+
+  async function seedAssignment(overrides = {}) {
+    await seed(async (admin) => {
+      await setDoc(
+        doc(admin, "assignments", ASSIGNMENT),
+        validAssignment(overrides)
+      );
+    });
+  }
+
+  test("the owner can archive an open assignment", async () => {
+    await seedAssignment();
     await assertSucceeds(
-      updateDoc(doc(db(TUTOR), "matches", DIRECT_ID), {
-        lastMessage: {
-          text: "See you Wednesday",
-          senderId: TUTOR,
-          sentAt: serverTimestamp(),
-        },
+      updateDoc(doc(db(STUDENT), "assignments", ASSIGNMENT), {
+        status: "closed",
         updatedAt: serverTimestamp(),
       })
     );
   });
 
-  test("the preview cannot be set on a pending request or change the status", async () => {
-    await seedMatch(DIRECT_ID, directRequest());
-    const preview = {
-      text: "Hi",
-      senderId: STUDENT,
-      sentAt: serverTimestamp(),
-    };
+  test("assignment details and ownership are immutable after posting", async () => {
+    await seedAssignment();
     await assertFails(
-      updateDoc(doc(db(STUDENT), "matches", DIRECT_ID), {
-        lastMessage: preview,
+      updateDoc(doc(db(STUDENT), "assignments", ASSIGNMENT), {
+        subject: "Physics",
         updatedAt: serverTimestamp(),
       })
     );
-    await seedMatch(DIRECT_ID, directRequest({ status: "accepted" }));
     await assertFails(
-      updateDoc(doc(db(STUDENT), "matches", DIRECT_ID), {
-        status: "rejected",
-        lastMessage: preview,
+      updateDoc(doc(db(STUDENT), "assignments", ASSIGNMENT), {
+        studentId: OUTSIDER,
         updatedAt: serverTimestamp(),
       })
     );
+  });
+
+  test("outsiders, reopening and destructive deletion are denied", async () => {
+    await seedAssignment({ status: "closed" });
+    await assertFails(
+      updateDoc(doc(db(OUTSIDER), "assignments", ASSIGNMENT), {
+        status: "open",
+        updatedAt: serverTimestamp(),
+      })
+    );
+    await assertFails(
+      updateDoc(doc(db(STUDENT), "assignments", ASSIGNMENT), {
+        status: "open",
+        updatedAt: serverTimestamp(),
+      })
+    );
+    await assertFails(deleteDoc(doc(db(STUDENT), "assignments", ASSIGNMENT)));
   });
 });
 
